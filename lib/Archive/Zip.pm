@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.101 $
+# $Revision: 1.102 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -23,11 +23,11 @@ use IO::File();
 use IO::Seekable();
 use Compress::Zlib();
 use File::Spec 0.8 ();
-use File::Temp ();
+use File::Temp();
+
 # use sigtrap qw(die normal-signals);	# is this needed?
 
-use vars
-  qw( @ISA @EXPORT_OK %EXPORT_TAGS $VERSION $ChunkSize $ErrorHandler );
+use vars qw( @ISA @EXPORT_OK %EXPORT_TAGS $VERSION $ChunkSize $ErrorHandler );
 
 # This is the size we'll try to read, write, and (de)compress.
 # You could set it to something different if you had lots of memory
@@ -41,7 +41,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.12";
+	$VERSION = "1.12_02";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -70,7 +70,7 @@ BEGIN
 	my @PKZipConstantNames = qw( SIGNATURE_FORMAT SIGNATURE_LENGTH
 	  LOCAL_FILE_HEADER_SIGNATURE LOCAL_FILE_HEADER_FORMAT
 	  LOCAL_FILE_HEADER_LENGTH CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE
-	  DATA_DESCRIPTOR_FORMAT DATA_DESCRIPTOR_LENGTH DATA_DESCRIPTOR_SIGNATURE 
+	  DATA_DESCRIPTOR_FORMAT DATA_DESCRIPTOR_LENGTH DATA_DESCRIPTOR_SIGNATURE
 	  DATA_DESCRIPTOR_FORMAT_NO_SIG DATA_DESCRIPTOR_LENGTH_NO_SIG
 	  CENTRAL_DIRECTORY_FILE_HEADER_FORMAT CENTRAL_DIRECTORY_FILE_HEADER_LENGTH
 	  END_OF_CENTRAL_DIRECTORY_SIGNATURE END_OF_CENTRAL_DIRECTORY_SIGNATURE_STRING
@@ -176,12 +176,13 @@ use constant LOCAL_FILE_HEADER_FORMAT    => "v3 V4 v2";
 use constant LOCAL_FILE_HEADER_LENGTH    => 26;
 
 # PKZIP docs don't mention the signature, but Info-Zip writes it.
-use constant DATA_DESCRIPTOR_SIGNATURE	=> 0x08074b50;
-use constant DATA_DESCRIPTOR_FORMAT		=> "V3";
-use constant DATA_DESCRIPTOR_LENGTH		=> 12;
+use constant DATA_DESCRIPTOR_SIGNATURE => 0x08074b50;
+use constant DATA_DESCRIPTOR_FORMAT    => "V3";
+use constant DATA_DESCRIPTOR_LENGTH    => 12;
+
 # but the signature is apparently optional.
-use constant DATA_DESCRIPTOR_FORMAT_NO_SIG	=> "V2";
-use constant DATA_DESCRIPTOR_LENGTH_NO_SIG	=> 8;
+use constant DATA_DESCRIPTOR_FORMAT_NO_SIG => "V2";
+use constant DATA_DESCRIPTOR_LENGTH_NO_SIG => 8;
 
 use constant CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE => 0x02014b50;
 use constant CENTRAL_DIRECTORY_FILE_HEADER_FORMAT    => "C2 v3 V4 v5 V2";
@@ -386,7 +387,7 @@ sub _readSignature    # Archive::Zip
 		|| ( !defined($expectedSignature)
 			&& $signature != CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE
 			&& $signature != LOCAL_FILE_HEADER_SIGNATURE
-			&& $signature != END_OF_CENTRAL_DIRECTORY_SIGNATURE 
+			&& $signature != END_OF_CENTRAL_DIRECTORY_SIGNATURE
 			&& $signature != DATA_DESCRIPTOR_SIGNATURE ) )
 	{
 		my $errmsg = sprintf( "bad signature: 0x%08x", $signature );
@@ -413,8 +414,14 @@ sub _readSignature    # Archive::Zip
 sub tempFile    # Archive::Zip
 {
 	my $dir = shift;
-	return File::Temp::tempfile(SUFFIX => '.zip', UNLINK => 1,
-			$dir ? (DIR => $dir) : ());
+	my ( $fh, $filename ) = File::Temp::tempfile(
+		SUFFIX => '.zip',
+		UNLINK => 1,
+		$dir ? ( DIR => $dir ) : ()
+	);
+	return ( undef, undef ) unless $fh;
+	my ( $status, $newfh ) = _newFileHandle( $fh, 'w+' );
+	return ( $newfh, $filename );
 }
 
 # Return the normalized directory name as used in a zip file (path
@@ -460,7 +467,7 @@ sub _asLocalName    # Archive::Zip
 	$volume = '' unless defined($volume);    # local FS format
 
 	my @paths = split ( /\//, $name );
-	my $filename  = pop (@paths);
+	my $filename = pop (@paths);
 	$filename = '' unless defined($filename);
 	my $localDirs = File::Spec->catdir(@paths);
 	my $localName = File::Spec->catpath( $volume, $localDirs, $filename );
@@ -587,7 +594,7 @@ sub zipfileComment    # Archive::Zip::Archive
 	my $comment = $self->{'zipfileComment'};
 	if (@_)
 	{
-		$self->{'zipfileComment'} = pack('C0a*', shift());	# avoid unicode
+		$self->{'zipfileComment'} = pack( 'C0a*', shift () );    # avoid unicode
 	}
 	return $comment;
 }
@@ -770,9 +777,10 @@ sub writeToFileHandle    # Archive::Zip::Archive
 		$member->endRead();
 		return $retval if $retval != AZ_OK;
 		$offset += $member->_localHeaderSize() + $member->_writeOffset();
-		$offset += $member->hasDataDescriptor() 
-			? DATA_DESCRIPTOR_LENGTH + SIGNATURE_LENGTH
-			: 0;
+		$offset += $member->hasDataDescriptor()
+		  ? DATA_DESCRIPTOR_LENGTH + SIGNATURE_LENGTH
+		  : 0;
+
 		# changed this so it reflects the last successful position
 		$self->{'writeCentralDirectoryOffset'} = $offset;
 	}
@@ -937,7 +945,7 @@ sub readFromFileHandle    # Archive::Zip::Archive
 
 	# TODO: how to support non-seekable zips?
 	return _error('file not seekable')
-		unless _isSeekable($fh);
+	  unless _isSeekable($fh);
 
 	$fh->seek( 0, 0 );    # rewind the file
 
@@ -955,8 +963,7 @@ sub readFromFileHandle    # Archive::Zip::Archive
 
 	# Try to detect garbage at beginning of archives
 	# This should be 0
-	$self->{'eocdOffset'} =
-	  $eocdPosition - $self->centralDirectorySize()    # here
+	$self->{'eocdOffset'} = $eocdPosition - $self->centralDirectorySize() # here
 	  - $self->centralDirectoryOffsetWRTStartingDiskNumber();
 
 	for ( ; ; )
@@ -1070,6 +1077,17 @@ sub _findEndOfCentralDirectory    # Archive::Zip::Archive
 	}
 }
 
+# Used to avoid taint problems when chdir'ing.
+# Not intended to increase security in any way; just intended to shut up the -T
+# complaints.  If your Cwd module is giving you unreliable returns from cwd()
+# you have bigger problems than this.
+sub _untaintDir
+{
+	my $dir = shift;
+	$dir =~ m/\A(.+)\z/s;
+	return $1;
+}
+
 sub addTree    # Archive::Zip::Archive
 {
 	my $self = shift;
@@ -1078,13 +1096,16 @@ sub addTree    # Archive::Zip::Archive
 	$dest = '' unless defined($dest);
 	my $pred = shift || sub { -r };
 	my @files;
-	my $startDir = cwd();
+	my $startDir = _untaintDir( cwd() );
+
+	return _error( 'undef returned by _untaintDir on cwd ', cwd() )
+	  unless $startDir;
 
 	# This avoids chdir'ing in Find, in a way compatible with older
 	# versions of File::Find.
 	my $wanted = sub {
 		local $main::_ = $File::Find::name;
-		my $dir = $File::Find::dir;
+		my $dir = _untaintDir($File::Find::dir);
 		chdir($startDir);
 		push ( @files, $File::Find::name ) if (&$pred);
 		chdir($dir);
@@ -1247,14 +1268,17 @@ sub updateTree    # Archive::Zip::Archive
 	my $rootZipName = _asZipDirName( $root, 1 );    # with trailing slash
 	my $pattern = $rootZipName eq './' ? '^' : "^\Q$rootZipName\E";
 
-	my $startDir = cwd();
 	my @files;
+	my $startDir = _untaintDir( cwd() );
+
+	return _error( 'undef returned by _untaintDir on cwd ', cwd() )
+	  unless $startDir;
 
 	# This avoids chdir'ing in Find, in a way compatible with older
 	# versions of File::Find.
 	my $wanted = sub {
 		local $main::_ = $File::Find::name;
-		my $dir = $File::Find::dir;
+		my $dir = _untaintDir($File::Find::dir);
 		chdir($startDir);
 		push ( @files, $File::Find::name ) if (&$pred);
 		chdir($dir);
@@ -1679,8 +1703,8 @@ sub extraFields    # Archive::Zip::Member
 sub fileComment    # Archive::Zip::Member
 {
 	( $#_ > 0 ) 
-		? ( $_[0]->{'fileComment'} = pack( 'C0a*', $_[1] )) 
-		: $_[0]->{'fileComment'};
+	  ? ( $_[0]->{'fileComment'} = pack( 'C0a*', $_[1] ) )
+	  : $_[0]->{'fileComment'};
 }
 
 sub hasDataDescriptor    # Archive::Zip::Member
@@ -2131,7 +2155,7 @@ sub rewindData    # Archive::Zip::Member
 	{
 		( $self->{'deflater'}, $status ) = Compress::Zlib::deflateInit(
 			'-Level'      => $self->desiredCompressionLevel(),
-			'-WindowBits' => -MAX_WBITS(),  # necessary magic
+			'-WindowBits' => -MAX_WBITS(),                     # necessary magic
 			'-Bufsize'    => $Archive::Zip::ChunkSize,
 			@_
 		);    # pass additional options
@@ -2143,7 +2167,7 @@ sub rewindData    # Archive::Zip::Member
 		and $self->desiredCompressionMethod() == COMPRESSION_STORED )
 	{
 		( $self->{'inflater'}, $status ) = Compress::Zlib::inflateInit(
-			'-WindowBits' => -MAX_WBITS(),    # necessary magic
+			'-WindowBits' => -MAX_WBITS(),               # necessary magic
 			'-Bufsize'    => $Archive::Zip::ChunkSize,
 			@_
 		);    # pass additional options
@@ -2199,14 +2223,16 @@ sub contents    # Archive::Zip::Member
 
 	if ( defined($newContents) )
 	{
+
 		# change our type and call the subclass contents method.
 		$self->_become(STRINGMEMBERCLASS);
-		return $self->contents(pack('C0a*', $newContents));	# in case of Unicode
+		return $self->contents( pack( 'C0a*', $newContents ) )
+		  ;    # in case of Unicode
 	}
 	else
 	{
 		my $oldCompression =
-			$self->desiredCompressionMethod(COMPRESSION_STORED);
+		  $self->desiredCompressionMethod(COMPRESSION_STORED);
 		my $status = $self->rewindData(@_);
 		if ( $status != AZ_OK )
 		{
@@ -2217,7 +2243,8 @@ sub contents    # Archive::Zip::Member
 		while ( $status == AZ_OK )
 		{
 			my $ref;
-			( $ref, $status ) = $self->readChunk( $self->_readDataRemaining() ); 
+			( $ref, $status ) = $self->readChunk( $self->_readDataRemaining() );
+
 			# did we get it in one chunk?
 			if ( length($$ref) == $self->uncompressedSize() )
 			{
@@ -2613,15 +2640,15 @@ sub isDirectory    # Archive::Zip::ZipFileMember
 
 sub _seekToLocalHeader    # Archive::Zip::ZipFileMember
 {
-	my $self  = shift;
-	my $where = shift;			# optional
-	my $previousWhere = shift;	# optional
+	my $self          = shift;
+	my $where         = shift;    # optional
+	my $previousWhere = shift;    # optional
 
 	$where = $self->localHeaderRelativeOffset() unless defined($where);
 
 	# avoid loop on certain corrupt files (from Julian Field)
 	return _formatError("corrupt zip file")
-		if defined($previousWhere) && $where == $previousWhere;
+	  if defined($previousWhere) && $where == $previousWhere;
 
 	my $status;
 	my $signature;
@@ -2638,8 +2665,9 @@ sub _seekToLocalHeader    # Archive::Zip::ZipFileMember
 	if ( $status == AZ_FORMAT_ERROR && $self->{'possibleEocdOffset'} )
 	{
 		$status =
-		  $self->_seekToLocalHeader( $self->localHeaderRelativeOffset() +
-			$self->{'possibleEocdOffset'}, $where );
+		  $self->_seekToLocalHeader(
+			$self->localHeaderRelativeOffset() + $self->{'possibleEocdOffset'},
+			$where );
 		if ( $status == AZ_OK )
 		{
 			$self->{'localHeaderRelativeOffset'} +=
@@ -2741,6 +2769,7 @@ sub _skipLocalFileHeader    # Archive::Zip::ZipFileMember
 
 	if ( $bitFlag & GPBF_HAS_DATA_DESCRIPTOR_MASK )
 	{
+
 		# Read the crc32, compressedSize, and uncompressedSize from the
 		# extended data descriptor, which directly follows the compressed data.
 		#
@@ -2750,16 +2779,17 @@ sub _skipLocalFileHeader    # Archive::Zip::ZipFileMember
 		  or return _ioError("seeking to extended local header");
 
 		# these values should be set correctly from before.
-		my $oldCrc32 = $self->{'eocdCrc32'};
-		my $oldCompressedSize = $self->{'compressedSize'};
+		my $oldCrc32            = $self->{'eocdCrc32'};
+		my $oldCompressedSize   = $self->{'compressedSize'};
 		my $oldUncompressedSize = $self->{'uncompressedSize'};
 
 		my $status = $self->_readDataDescriptor();
 		return $status unless $status == AZ_OK;
 
-		return _formatError("CRC or size mismatch while skipping data descriptor")
-			if ($oldCrc32 != $self->{'crc32'}
-				|| $oldUncompressedSize != $self->{'uncompressedSize'});
+		return _formatError(
+			"CRC or size mismatch while skipping data descriptor")
+		  if ( $oldCrc32 != $self->{'crc32'}
+			|| $oldUncompressedSize != $self->{'uncompressedSize'} );
 	}
 
 	return AZ_OK;
@@ -2785,11 +2815,11 @@ sub _readLocalFileHeader    # Archive::Zip::ZipFileMember
 	my $uncompressedSize;
 	my $extraFieldLength;
 	( $self->{'versionNeededToExtract'}, $self->{'bitFlag'},
-	  $self->{'compressionMethod'}, $self->{'lastModFileDateTime'},
-	  $crc32,                       $compressedSize,
-	  $uncompressedSize,            $fileNameLength,
+	       $self->{'compressionMethod'}, $self->{'lastModFileDateTime'},
+	       $crc32,                       $compressedSize,
+	       $uncompressedSize,            $fileNameLength,
 	  $extraFieldLength )
-		= unpack( LOCAL_FILE_HEADER_FORMAT, $header );
+	  = unpack( LOCAL_FILE_HEADER_FORMAT, $header );
 
 	if ($fileNameLength)
 	{
@@ -2805,7 +2835,7 @@ sub _readLocalFileHeader    # Archive::Zip::ZipFileMember
 	if ($extraFieldLength)
 	{
 		$bytesRead =
-			$self->fh()->read( $self->{'localExtraField'}, $extraFieldLength );
+		  $self->fh()->read( $self->{'localExtraField'}, $extraFieldLength );
 		if ( $bytesRead != $extraFieldLength )
 		{
 			return _ioError("reading local extra field");
@@ -2816,21 +2846,23 @@ sub _readLocalFileHeader    # Archive::Zip::ZipFileMember
 
 	if ( $self->hasDataDescriptor() )
 	{
+
 		# Read the crc32, compressedSize, and uncompressedSize from the
 		# extended data descriptor.
 		# Skip over the compressed file data (assumes that EOCD compressedSize
 		# was correct)
 		$self->fh()->seek( $self->{'compressedSize'}, IO::Seekable::SEEK_CUR )
-			or return _ioError("seeking to extended local header");
+		  or return _ioError("seeking to extended local header");
 
 		my $status = $self->_readDataDescriptor();
 		return $status unless $status == AZ_OK;
 	}
 	else
 	{
-		return _formatError("CRC or size mismatch after reading data descriptor")
-			if ( $self->{'crc32'} != $crc32
-					|| $self->{'uncompressedSize'} != $uncompressedSize );
+		return _formatError(
+			"CRC or size mismatch after reading data descriptor")
+		  if ( $self->{'crc32'} != $crc32
+			|| $self->{'uncompressedSize'} != $uncompressedSize );
 	}
 
 	return AZ_OK;
@@ -2853,32 +2885,34 @@ sub _readDataDescriptor
 
 	my $bytesRead = $self->fh()->read( $signatureData, SIGNATURE_LENGTH );
 	return _ioError("reading header signature")
-		if $bytesRead != SIGNATURE_LENGTH;
+	  if $bytesRead != SIGNATURE_LENGTH;
 	my $signature = unpack( SIGNATURE_FORMAT, $signatureData );
 
 	# unfortunately, the signature appears to be optional.
-	if ( $signature == DATA_DESCRIPTOR_SIGNATURE && ($signature != $self->{'crc32'} ))
+	if ( $signature == DATA_DESCRIPTOR_SIGNATURE
+		&& ( $signature != $self->{'crc32'} ) )
 	{
 		$bytesRead = $self->fh()->read( $header, DATA_DESCRIPTOR_LENGTH );
 		return _ioError("reading data descriptor")
-			if $bytesRead != DATA_DESCRIPTOR_LENGTH;
+		  if $bytesRead != DATA_DESCRIPTOR_LENGTH;
 
 		( $crc32, $compressedSize, $uncompressedSize ) =
-			unpack( DATA_DESCRIPTOR_FORMAT, $header );
+		  unpack( DATA_DESCRIPTOR_FORMAT, $header );
 	}
 	else
 	{
-		$bytesRead = $self->fh()->read( $header, DATA_DESCRIPTOR_LENGTH_NO_SIG );
+		$bytesRead =
+		  $self->fh()->read( $header, DATA_DESCRIPTOR_LENGTH_NO_SIG );
 		return _ioError("reading data descriptor")
-			if $bytesRead != DATA_DESCRIPTOR_LENGTH_NO_SIG;
+		  if $bytesRead != DATA_DESCRIPTOR_LENGTH_NO_SIG;
 
 		$crc32 = $signature;
 		( $compressedSize, $uncompressedSize ) =
-			unpack( DATA_DESCRIPTOR_FORMAT_NO_SIG, $header );
+		  unpack( DATA_DESCRIPTOR_FORMAT_NO_SIG, $header );
 	}
 
-	$self->{'eocdCrc32'}        = $self->{'crc32'}
-		unless defined( $self->{'eocdCrc32'} );
+	$self->{'eocdCrc32'} = $self->{'crc32'}
+	  unless defined( $self->{'eocdCrc32'} );
 	$self->{'crc32'}            = $crc32;
 	$self->{'compressedSize'}   = $compressedSize;
 	$self->{'uncompressedSize'} = $uncompressedSize;
@@ -3027,9 +3061,10 @@ sub contents    # Archive::Zip::StringMember
 	my $string = shift;
 	if ( defined($string) )
 	{
-		$self->{'contents'} = pack('C0a*', ( ref($string) eq 'SCALAR' ) ? $$string : $string);
+		$self->{'contents'} =
+		  pack( 'C0a*', ( ref($string) eq 'SCALAR' ) ? $$string : $string );
 		$self->{'uncompressedSize'} = $self->{'compressedSize'} =
-			length( $self->{'contents'} );
+		  length( $self->{'contents'} );
 		$self->{'compressionMethod'} = COMPRESSION_STORED;
 	}
 	return $self->{'contents'};
