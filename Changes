@@ -1,5 +1,8 @@
 Revision history for Perl extension Archive::Zip.
 
+1.04 Wed Sep 11 07:22:04 PDT 2002
+  - added untaint of lastModFileDateTime
+
 1.03 Mon Sep  2 20:42:43 PDT 2002
   - Removed dependency on IO::Scalar
   - Set required version of File::Spec to 0.8
