@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.76 $
+# $Revision: 1.77 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -39,7 +39,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.04";
+	$VERSION = "1.05";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -1298,7 +1298,9 @@ sub fileName    # Archive::Zip::Member
 
 sub lastModFileDateTime    # Archive::Zip::Member
 {
-	shift->{'lastModFileDateTime'};
+	my $modTime = shift->{'lastModFileDateTime'};
+	$modTime =~ m/^(\d+)$/;	# untaint
+	return $1;
 }
 
 sub lastModTime    # Archive::Zip::Member
@@ -2450,13 +2452,6 @@ sub _readLocalFileHeader    # Archive::Zip::ZipFileMember
 	       $uncompressedSize,            $fileNameLength,
 	  $extraFieldLength )
 	  = unpack( LOCAL_FILE_HEADER_FORMAT, $header );
-
-	# untaint this var because we use it in utime() later
-	unless ( $self->{'lastModFileDateTime'} =~ m/^(\d+)$/ )
-	{
-		return _formatError("bad modtime");
-	}
-	$self->{'lastModFileDateTime'} = $1;
 
 	if ($fileNameLength)
 	{

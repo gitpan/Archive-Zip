@@ -1,5 +1,8 @@
 Revision history for Perl extension Archive::Zip.
 
+1.05 Wed Sep 11 12:31:20 PDT 2002
+  - fixed untaint from 1.04
+
 1.04 Wed Sep 11 07:22:04 PDT 2002
   - added untaint of lastModFileDateTime
 
