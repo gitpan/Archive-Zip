@@ -1,0 +1,23 @@
+Changes                     Version to version change log
+INSTALL                     How to install this module
+MANIFEST                    This file
+Makefile.PL                 Perl program to construct the Makefile
+README                      Overview
+TODO                        Stuff left to do
+docs/Appnote.txt            PKZIP format description
+docs/Archive-Zip.pdf        Object model, PDF version
+docs/Archive-Zip.ps         Object model, Postscript version
+docs/ideas.txt              Misc ideas for extra field extension
+examples/copy.pl            Copies one ZIP file to another
+examples/extract.pl         extract file(s) from a zip
+examples/mfh.pl             demo for use of MockFileHandle
+examples/zip.pl             Constructs a zip file
+examples/zipinfo.pl         Prints out information about a ZIP archive file
+examples/ziptest.pl         Lists a ZIP file and checks member CRCs
+lib/Archive/Zip.pm          The Archive::Zip module itself
+lib/Archive/Zip/BufferedFileHandle.pm   To be used to write ZIP files to strings
+lib/Archive/Zip/MockFileHandle.pm   To be used to write ZIP files to whatever
+t/test.t                    Regression test program
+t/testex.t                  Tests the examples
+t/common.pl                 Common bits used by test programs
+crc32                       Utility program to print out file CRC's

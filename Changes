@@ -1,0 +1,7 @@
+Revision history for Perl extension Archive::Zip.
+
+0.01  Sun Mar 12 18:59:55 2000
+	- original version; created by h2xs 1.19
+
+0.06  Tue Mar 21 15:28:22 PST 2000
+	- first release to CPAN

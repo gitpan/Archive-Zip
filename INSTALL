@@ -1,0 +1,8 @@
+To make and test, do the following:
+	perl Makefile.PL
+	make
+	make test
+
+To copy the libs and docs to the right places,
+do this (as superuser or administrator):
+	make install
