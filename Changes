@@ -1,5 +1,13 @@
 Revision history for Perl extension Archive::Zip.
 
+1.10 Thu Mar 25 06:24:17 PST 2004
+  - Fixed documentation of setErrorHandler()
+  - Fixed link to Japanese translation of docs
+  - Added Compress::Zlib Bufsize patch from Yeasah Pell that was supposed to
+    have been added in 1.02
+  - Fixed problems with backup filenames for zips with no extension
+  - Fixed problems with undef volume names in _asLocalName()
+
 1.09 Wed Nov 26 17:43:49 PST 2003
   - Fixed handling of inserted garbage (as from viruses)
   - Always check for local header signatures before using them

@@ -338,6 +338,7 @@ Or you can compute the running CRC:
 
 
 Report or change chunk size used for reading and writing.
+This can make big differences in dealing with large files.
 Currently, this defaults to 32K. This also changes the chunk
 size used for Compress::Zlib. You must call setChunkSize()
 before reading or writing. This is not exportable, so you
@@ -367,7 +368,7 @@ call it like:
 
     Archive::Zip::setErrorHandler( \&myErrorHandler );
 
-If no error handler is passed, resets handler to default.
+If myErrorHandler is undef, resets handler to default.
 Returns old error handler. Note that if you call Carp::carp
 or a similar routine or if you're chaining to the default
 error handler from your error handler, you may want to
@@ -1590,6 +1591,6 @@ L<Archive::Tar>
 
 
 There is a Japanese translation of this
-document at L<http://www.necoware.com/~deq/perl/doc-ja/Archive-Zip.html> that
+document at L<http://www.memb.jp/~deq/perl/doc-ja/Archive-Zip.html> that
 was done by DEQ <deq@oct.zaq.ne.jp> . Thanks! 
 

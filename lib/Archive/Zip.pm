@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.88 $
+# $Revision: 1.90 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -39,7 +39,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.09";
+	$VERSION = "1.10";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -469,6 +469,7 @@ sub _asLocalName    # Archive::Zip
 
 	my @paths = split ( /\//, $name );
 	my $filename  = pop (@paths);
+	$filename = '' unless defined($filename);
 	my $localDirs = File::Spec->catdir(@paths);
 	my $localName = File::Spec->catpath( $volume, $localDirs, $filename );
 	$localName = File::Spec->rel2abs($localName) unless $volume;
@@ -805,7 +806,7 @@ sub overwriteAs    # Archive::Zip::Archive
 
 	my ( $fh, $tempName ) = Archive::Zip::tempFile();
 	return _error( "Can't open temp file", $! ) unless $fh;
-	( my $backupName = $zipName ) =~ s{\.[^.]*$}{.zbk};
+	( my $backupName = $zipName ) =~ s{(\.[^.]*)?$}{.zbk};
 	my $status;
 
 	if ( ( $status = $self->writeToFileHandle($fh) ) == AZ_OK )
@@ -2129,7 +2130,7 @@ sub rewindData    # Archive::Zip::Member
 		( $self->{'deflater'}, $status ) = Compress::Zlib::deflateInit(
 			'-Level'      => $self->desiredCompressionLevel(),
 			'-WindowBits' => -MAX_WBITS(),  # necessary magic
-			#			'-Bufsize'    => $Archive::Zip::ChunkSize,
+			'-Bufsize'    => $Archive::Zip::ChunkSize,
 			@_
 		);    # pass additional options
 		return _error( 'deflateInit error:', $status )
@@ -2141,7 +2142,7 @@ sub rewindData    # Archive::Zip::Member
 	{
 		( $self->{'inflater'}, $status ) = Compress::Zlib::inflateInit(
 			'-WindowBits' => -MAX_WBITS(),    # necessary magic
-			#			'-Bufsize'    => $Archive::Zip::ChunkSize,
+			'-Bufsize'    => $Archive::Zip::ChunkSize,
 			@_
 		);    # pass additional options
 		return _error( 'inflateInit error:', $status )
