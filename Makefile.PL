@@ -5,7 +5,11 @@ use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 sub MY::postamble
-{ '
+{
+	if ($^O eq 'VMS') { '' }
+	else
+	{
+'
 
 docs/Archive-Zip.pdf:  docs/Archive-Zip.ps
 	ps2pdf $<
@@ -18,8 +22,10 @@ docs/Archive-Zip.ps:  docs/Archive-Zip.ssd
 pods:
 	otl2pod lib/Archive/Zip.otl > lib/Archive/Zip.pod
 	otl2pod lib/Archive/Zip/FAQ.otl > lib/Archive/Zip/FAQ.pod
-'
+' 
+	}
 }
+
 
 WriteMakefile(
 	NAME			=> 'Archive::Zip',
