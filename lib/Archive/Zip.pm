@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.102 $
+# $Revision: 1.103 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -41,7 +41,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.12_02";
+	$VERSION = "1.12_03";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -416,7 +416,7 @@ sub tempFile    # Archive::Zip
 	my $dir = shift;
 	my ( $fh, $filename ) = File::Temp::tempfile(
 		SUFFIX => '.zip',
-		UNLINK => 1,
+		UNLINK => 0,        # we will delete it!
 		$dir ? ( DIR => $dir ) : ()
 	);
 	return ( undef, undef ) unless $fh;
@@ -755,6 +755,8 @@ sub writeToFileNamed    # Archive::Zip::Archive
 	return _ioError("Can't open $fileName for write") unless $status;
 	my $retval = $self->writeToFileHandle( $fh, 1 );
 	$fh->close();
+	$fh = undef;
+
 	return $retval;
 }
 
@@ -810,11 +812,12 @@ sub overwriteAs    # Archive::Zip::Archive
 
 	( my $backupName = $zipName ) =~ s{(\.[^.]*)?$}{.zbk};
 
-	my $status;
+	my $status = $self->writeToFileHandle($fh);
+	$fh->close();
+	$fh = undef;
 
-	if ( ( $status = $self->writeToFileHandle($fh) ) != AZ_OK )
+	if ( $status != AZ_OK )
 	{
-		$fh->close();
 		unlink($tempName);
 		_printError("Can't write to $tempName");
 		return $status;
@@ -2486,19 +2489,11 @@ sub _openFile    # Archive::Zip::FileMember
 	return $fh;
 }
 
-# Closes my file handle
-sub _closeFile    # Archive::Zip::FileMember
-{
-	my $self = shift;
-	my $fh   = $self->{'fh'};
-	$self->{'fh'} = undef;
-}
-
 # Make sure I close my file handle
 sub endRead    # Archive::Zip::FileMember
 {
 	my $self = shift;
-	$self->_closeFile();
+	undef $self->{'fh'};    # _closeFile();
 	return $self->SUPER::endRead(@_);
 }
 
