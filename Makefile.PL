@@ -45,6 +45,7 @@ WriteMakefile(
 		'File::Basename'	=> 0,
 		'File::Spec'		=> 0.8,	# need splitpath()
 		'File::Copy'		=> 0,
+		'File::Temp'		=> 0,
 		'Getopt::Std'		=> 0,	# examples/extract.pl
 		'IO::File'			=> 0,
 		'IO::Handle'		=> 0,

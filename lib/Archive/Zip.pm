@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.99 $
+# $Revision: 1.101 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -23,9 +23,11 @@ use IO::File();
 use IO::Seekable();
 use Compress::Zlib();
 use File::Spec 0.8 ();
+use File::Temp ();
+# use sigtrap qw(die normal-signals);	# is this needed?
 
 use vars
-  qw( @ISA @EXPORT_OK %EXPORT_TAGS $VERSION $ChunkSize $ErrorHandler $TempSequence);
+  qw( @ISA @EXPORT_OK %EXPORT_TAGS $VERSION $ChunkSize $ErrorHandler );
 
 # This is the size we'll try to read, write, and (de)compress.
 # You could set it to something different if you had lots of memory
@@ -39,7 +41,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.11";
+	$VERSION = "1.12";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -407,29 +409,12 @@ sub _readSignature    # Archive::Zip
 # my ($fh, $name) = Archive::Zip::tempFile();
 # my ($fh, $name) = Archive::Zip::tempFile('mytempdir');
 #
-BEGIN { $Archive::Zip::TempSequence = 0 }
-
-sub tempFileName    # Archive::Zip
-{
-	my $temp_dir = shift;
-	$temp_dir = ( -d '/tmp' ? '/tmp' : $ENV{TMPDIR} || $ENV{TEMP} || '.' )
-	  unless defined($temp_dir);
-	unless ( -d $temp_dir )
-	{
-		mkdir( $temp_dir, 0777 )
-		  or die "Can't create temp directory $temp_dir\: $!\n";
-	}
-	my $base_name =
-	  sprintf( "%d-%d.%d", $$, time(), $Archive::Zip::TempSequence++ );
-	return File::Spec->canonpath(
-		File::Spec->catpath( '', $temp_dir, $base_name ) );
-}
 
 sub tempFile    # Archive::Zip
 {
-	my $full_name = tempFileName(@_);
-	my $fh = IO::File->new( $full_name, '+>' );
-	return defined($fh) ? ( $fh, $full_name ) : ();
+	my $dir = shift;
+	return File::Temp::tempfile(SUFFIX => '.zip', UNLINK => 1,
+			$dir ? (DIR => $dir) : ());
 }
 
 # Return the normalized directory name as used in a zip file (path
@@ -814,46 +799,46 @@ sub overwriteAs    # Archive::Zip::Archive
 
 	my ( $fh, $tempName ) = Archive::Zip::tempFile();
 	return _error( "Can't open temp file", $! ) unless $fh;
+
 	( my $backupName = $zipName ) =~ s{(\.[^.]*)?$}{.zbk};
+
 	my $status;
 
-	if ( ( $status = $self->writeToFileHandle($fh) ) == AZ_OK )
-	{
-		my $err;
-		$fh->close();
-
-		# rename the zip
-		if ( -f $zipName && !rename( $zipName, $backupName ) )
-		{
-			$err = $!;
-			unlink($tempName);
-			return _error( "Can't rename $zipName as $backupName", $err );
-		}
-
-		# move the temp to the original name (possibly copying)
-		unless ( File::Copy::move( $tempName, $zipName ) )
-		{
-			$err = $!;
-			rename( $backupName, $zipName );
-			unlink($tempName);
-			return _error( "Can't move $tempName to $zipName", $err );
-		}
-
-		# unlink the backup
-		if ( -f $backupName && !unlink($backupName) )
-		{
-			$err = $!;
-			return _error( "Can't unlink $backupName", $err );
-		}
-		return AZ_OK;
-	}
-	else
+	if ( ( $status = $self->writeToFileHandle($fh) ) != AZ_OK )
 	{
 		$fh->close();
 		unlink($tempName);
 		_printError("Can't write to $tempName");
 		return $status;
 	}
+
+	my $err;
+
+	# rename the zip
+	if ( -f $zipName && !rename( $zipName, $backupName ) )
+	{
+		$err = $!;
+		unlink($tempName);
+		return _error( "Can't rename $zipName as $backupName", $err );
+	}
+
+	# move the temp to the original name (possibly copying)
+	unless ( File::Copy::move( $tempName, $zipName ) )
+	{
+		$err = $!;
+		rename( $backupName, $zipName );
+		unlink($tempName);
+		return _error( "Can't move $tempName to $zipName", $err );
+	}
+
+	# unlink the backup
+	if ( -f $backupName && !unlink($backupName) )
+	{
+		$err = $!;
+		return _error( "Can't unlink $backupName", $err );
+	}
+
+	return AZ_OK;
 }
 
 # Used only during writing
