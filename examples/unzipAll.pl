@@ -1,5 +1,6 @@
 #!/bin/perl -w
-# Extracts all files 
+# Extracts all files from the given zip
+# $Revision: 1.3 $
 # usage:
 #	perl unzipAll.pl [-j] zipfile.zip
 # if -j option given, discards paths.
@@ -7,7 +8,6 @@
 use strict;
 
 use vars qw( $opt_j );
-use Archive::Zip::Tree;
 use Archive::Zip qw(:ERROR_CODES);
 use Getopt::Std;
 

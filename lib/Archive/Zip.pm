@@ -1,113 +1,9 @@
 #! perl -w
-# $Revision: 1.54 $
+# $Revision: 1.69 $
 
-# Copyright (c) 2000 Ned Konz. All rights reserved.  This program is free
-# software; you can redistribute it and/or modify it under the same terms
-# as Perl itself.
-
-=head1 NAME
-
-Archive::Zip - Provide an interface to ZIP archive files.
-
-=head1 SYNOPSIS
-
- use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
-
- my $zip = Archive::Zip->new();
- my $member = $zip->addDirectory( 'dirname/' );
- $member = $zip->addString( 'This is a test', 'stringMember.txt' );
- $member->desiredCompressionMethod( COMPRESSION_DEFLATED );
- $member = $zip->addFile( 'xyz.pl', 'AnotherName.pl' );
-
- die 'write error' unless $zip->writeToFileNamed( 'someZip.zip' ) == AZ_OK;
-
- $zip = Archive::Zip->new();
- die 'read error' unless $zip->read( 'someZip.zip' ) == AZ_OK;
-
- $member = $zip->memberNamed( 'stringMember.txt' );
- $member->desiredCompressionMethod( COMPRESSION_STORED );
-
- die 'write error' unless $zip->writeToFileNamed( 'someOtherZip.zip' ) == AZ_OK;
-
-=head1 DESCRIPTION
-
-The Archive::Zip module allows a Perl program to create,
-manipulate, read, and write Zip archive files.
-
-Zip archives can be created, or you can read from existing zip files.
-Once created, they can be written to files, streams, or strings.
-
-Members can be added, removed, extracted, replaced, rearranged,
-and enumerated.
-They can also be renamed or have their dates, comments,
-or other attributes queried or modified.
-Their data can be compressed or uncompressed as needed.
-Members can be created from members in existing Zip files,
-or from existing directories, files, or strings.
-
-This module uses the L<Compress::Zlib|Compress::Zlib> library
-to read and write the compressed streams inside the files.
-
-See L<Archive::Zip::Tree> for easy operations on directories full
-of files, or on entire Zip files. This is included in the Archive::Zip
-distribution.
-
-=head1 EXPORTS
-
-=over 4
-
-=item :CONSTANTS
-
-Exports the following constants:
-
-FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
-GPBF_DEFLATING_COMPRESSION_MASK GPBF_HAS_DATA_DESCRIPTOR_MASK
-COMPRESSION_STORED COMPRESSION_DEFLATED
-IFA_TEXT_FILE_MASK IFA_TEXT_FILE IFA_BINARY_FILE
-COMPRESSION_LEVEL_NONE
-COMPRESSION_LEVEL_DEFAULT
-COMPRESSION_LEVEL_FASTEST
-COMPRESSION_LEVEL_BEST_COMPRESSION
-
-=item :MISC_CONSTANTS
-
-Exports the following constants (only necessary for extending the module):
-
-FA_AMIGA FA_VAX_VMS FA_VM_CMS FA_ATARI_ST
-FA_OS2_HPFS FA_MACINTOSH FA_Z_SYSTEM FA_CPM FA_WINDOWS_NTFS
-GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK
-GPBF_IMPLODING_3_SHANNON_FANO_TREES_MASK
-GPBF_IS_COMPRESSED_PATCHED_DATA_MASK COMPRESSION_SHRUNK
-DEFLATING_COMPRESSION_NORMAL DEFLATING_COMPRESSION_MAXIMUM
-DEFLATING_COMPRESSION_FAST DEFLATING_COMPRESSION_SUPER_FAST
-COMPRESSION_REDUCED_1 COMPRESSION_REDUCED_2 COMPRESSION_REDUCED_3
-COMPRESSION_REDUCED_4 COMPRESSION_IMPLODED COMPRESSION_TOKENIZED
-COMPRESSION_DEFLATED_ENHANCED
-COMPRESSION_PKWARE_DATA_COMPRESSION_LIBRARY_IMPLODED
-
-=item :ERROR_CODES
-
-Explained below. Returned from most methods.
-
-AZ_OK AZ_STREAM_END AZ_ERROR AZ_FORMAT_ERROR AZ_IO_ERROR
-
-=back
-
-=head1 OBJECT MODEL
-
-=head2 Inheritance
-
- Exporter
-    Archive::Zip                            Common base class, has defs.
-        Archive::Zip::Archive               A Zip archive.
-        Archive::Zip::Member                Abstract superclass for all members.
-            Archive::Zip::StringMember      Member made from a string
-            Archive::Zip::FileMember        Member made from an external file
-                Archive::Zip::ZipFileMember Member that lives in a zip file
-                Archive::Zip::NewFileMember Member whose data is in a file
-            Archive::Zip::DirectoryMember   Member that is a directory
-
-=cut
+# Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
+# software; you can redistribute it and/or modify it under the same terms as
+# Perl itself.
 
 # ----------------------------------------------------------------------
 # class Archive::Zip
@@ -122,12 +18,14 @@ package Archive::Zip;
 require 5.003_96;
 use strict;
 
-use Carp ();
-use IO::File ();
-use IO::Seekable ();
-use Compress::Zlib ();
+use Carp();
+use IO::File();
+use IO::Seekable();
+use Compress::Zlib();
+use File::Spec();
 
-use vars qw( @ISA @EXPORT_OK %EXPORT_TAGS $VERSION $ChunkSize $ErrorHandler );
+use vars
+  qw( @ISA @EXPORT_OK %EXPORT_TAGS $VERSION $ChunkSize $ErrorHandler $TempSequence);
 
 # This is the size we'll try to read, write, and (de)compress.
 # You could set it to something different if you had lots of memory
@@ -141,100 +39,69 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.01";
+	$VERSION = "1.02";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
-	GPBF_DEFLATING_COMPRESSION_MASK GPBF_HAS_DATA_DESCRIPTOR_MASK
-	COMPRESSION_STORED COMPRESSION_DEFLATED COMPRESSION_LEVEL_NONE
-	COMPRESSION_LEVEL_DEFAULT COMPRESSION_LEVEL_FASTEST
-	COMPRESSION_LEVEL_BEST_COMPRESSION IFA_TEXT_FILE_MASK IFA_TEXT_FILE
-	IFA_BINARY_FILE );
+	  GPBF_DEFLATING_COMPRESSION_MASK GPBF_HAS_DATA_DESCRIPTOR_MASK
+	  COMPRESSION_STORED COMPRESSION_DEFLATED COMPRESSION_LEVEL_NONE
+	  COMPRESSION_LEVEL_DEFAULT COMPRESSION_LEVEL_FASTEST
+	  COMPRESSION_LEVEL_BEST_COMPRESSION IFA_TEXT_FILE_MASK IFA_TEXT_FILE
+	  IFA_BINARY_FILE );
 
 	my @MiscConstantNames = qw( FA_AMIGA FA_VAX_VMS FA_VM_CMS FA_ATARI_ST
-	FA_OS2_HPFS FA_MACINTOSH FA_Z_SYSTEM FA_CPM FA_WINDOWS_NTFS
-	GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK
-	GPBF_IMPLODING_3_SHANNON_FANO_TREES_MASK
-	GPBF_IS_COMPRESSED_PATCHED_DATA_MASK COMPRESSION_SHRUNK
-	DEFLATING_COMPRESSION_NORMAL DEFLATING_COMPRESSION_MAXIMUM
-	DEFLATING_COMPRESSION_FAST DEFLATING_COMPRESSION_SUPER_FAST
-	COMPRESSION_REDUCED_1 COMPRESSION_REDUCED_2 COMPRESSION_REDUCED_3
-	COMPRESSION_REDUCED_4 COMPRESSION_IMPLODED COMPRESSION_TOKENIZED
-	COMPRESSION_DEFLATED_ENHANCED
-	COMPRESSION_PKWARE_DATA_COMPRESSION_LIBRARY_IMPLODED );
+	  FA_OS2_HPFS FA_MACINTOSH FA_Z_SYSTEM FA_CPM FA_WINDOWS_NTFS
+	  GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK
+	  GPBF_IMPLODING_3_SHANNON_FANO_TREES_MASK
+	  GPBF_IS_COMPRESSED_PATCHED_DATA_MASK COMPRESSION_SHRUNK
+	  DEFLATING_COMPRESSION_NORMAL DEFLATING_COMPRESSION_MAXIMUM
+	  DEFLATING_COMPRESSION_FAST DEFLATING_COMPRESSION_SUPER_FAST
+	  COMPRESSION_REDUCED_1 COMPRESSION_REDUCED_2 COMPRESSION_REDUCED_3
+	  COMPRESSION_REDUCED_4 COMPRESSION_IMPLODED COMPRESSION_TOKENIZED
+	  COMPRESSION_DEFLATED_ENHANCED
+	  COMPRESSION_PKWARE_DATA_COMPRESSION_LIBRARY_IMPLODED );
 
 	my @ErrorCodeNames = qw( AZ_OK AZ_STREAM_END AZ_ERROR AZ_FORMAT_ERROR
-	AZ_IO_ERROR );
+	  AZ_IO_ERROR );
 
 	my @PKZipConstantNames = qw( SIGNATURE_FORMAT SIGNATURE_LENGTH
-	LOCAL_FILE_HEADER_SIGNATURE LOCAL_FILE_HEADER_FORMAT
-	LOCAL_FILE_HEADER_LENGTH DATA_DESCRIPTOR_FORMAT DATA_DESCRIPTOR_LENGTH
-	CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE
-	CENTRAL_DIRECTORY_FILE_HEADER_FORMAT CENTRAL_DIRECTORY_FILE_HEADER_LENGTH
-	END_OF_CENTRAL_DIRECTORY_SIGNATURE
-	END_OF_CENTRAL_DIRECTORY_SIGNATURE_STRING END_OF_CENTRAL_DIRECTORY_FORMAT
-	END_OF_CENTRAL_DIRECTORY_LENGTH );
+	  LOCAL_FILE_HEADER_SIGNATURE LOCAL_FILE_HEADER_FORMAT
+	  LOCAL_FILE_HEADER_LENGTH DATA_DESCRIPTOR_FORMAT DATA_DESCRIPTOR_LENGTH
+	  CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE
+	  CENTRAL_DIRECTORY_FILE_HEADER_FORMAT CENTRAL_DIRECTORY_FILE_HEADER_LENGTH
+	  END_OF_CENTRAL_DIRECTORY_SIGNATURE
+	  END_OF_CENTRAL_DIRECTORY_SIGNATURE_STRING END_OF_CENTRAL_DIRECTORY_FORMAT
+	  END_OF_CENTRAL_DIRECTORY_LENGTH );
 
 	my @UtilityMethodNames = qw( _error _ioError _formatError
-		_subclassResponsibility _binmode _isSeekable _newFileHandle);
+	  _subclassResponsibility _binmode _isSeekable _newFileHandle);
 
-	@EXPORT_OK = ( 'computeCRC32' );
-	%EXPORT_TAGS = ( 'CONSTANTS' => \@ConstantNames,
-			'MISC_CONSTANTS' => \@MiscConstantNames,
-			'ERROR_CODES' => \@ErrorCodeNames,
-			# The following two sets are for internal use only
-			'PKZIP_CONSTANTS' => \@PKZipConstantNames,
-			'UTILITY_METHODS' => \@UtilityMethodNames );
+	@EXPORT_OK   = ('computeCRC32');
+	%EXPORT_TAGS = (
+		'CONSTANTS'      => \@ConstantNames,
+		'MISC_CONSTANTS' => \@MiscConstantNames,
+		'ERROR_CODES'    => \@ErrorCodeNames,
+
+		# The following two sets are for internal use only
+		'PKZIP_CONSTANTS' => \@PKZipConstantNames,
+		'UTILITY_METHODS' => \@UtilityMethodNames
+	);
 
 	# Add all the constant names and error code names to @EXPORT_OK
-	Exporter::export_ok_tags( 'CONSTANTS', 'ERROR_CODES',
-		'PKZIP_CONSTANTS', 'UTILITY_METHODS', 'MISC_CONSTANTS' );
+	Exporter::export_ok_tags(
+		'CONSTANTS',       'ERROR_CODES',
+		'PKZIP_CONSTANTS', 'UTILITY_METHODS',
+		'MISC_CONSTANTS'
+	);
 }
 
 # ------------------------- begin exportable error codes -------------------
 
-=head1 ERROR CODES
-
-Many of the methods in Archive::Zip return error codes.
-These are implemented as inline subroutines, using the C<use constant> pragma.
-They can be imported into your namespace using the C<:CONSTANT>
-tag:
-
-    use Archive::Zip qw( :CONSTANTS );
-    ...
-    die "whoops!" unless $zip->read( 'myfile.zip' ) == AZ_OK;
-
-=over 4
-
-=item AZ_OK (0)
-
-Everything is fine.
-
-=item AZ_STREAM_END (1)
-
-The read stream (or central directory) ended normally.
-
-=item AZ_ERROR (2)
-
-There was some generic kind of error.
-
-=item AZ_FORMAT_ERROR (3)
-
-There is a format error in a ZIP file being read.
-
-=item AZ_IO_ERROR (4)
-
-There was an IO error.
-
-=back
-
-=cut
-
-use constant AZ_OK			=> 0;
-use constant AZ_STREAM_END	=> 1;
-use constant AZ_ERROR		=> 2;
+use constant AZ_OK           => 0;
+use constant AZ_STREAM_END   => 1;
+use constant AZ_ERROR        => 2;
 use constant AZ_FORMAT_ERROR => 3;
-use constant AZ_IO_ERROR	=> 4;
+use constant AZ_IO_ERROR     => 4;
 
 # ------------------------- end exportable error codes ---------------------
 # ------------------------- begin exportable constants ---------------------
@@ -242,247 +109,98 @@ use constant AZ_IO_ERROR	=> 4;
 # File types
 # Values of Archive::Zip::Member->fileAttributeFormat()
 
-use constant FA_MSDOS		=> 0;
-use constant FA_UNIX		=> 3;
+use constant FA_MSDOS => 0;
+use constant FA_UNIX  => 3;
 
 # general-purpose bit flag masks
 # Found in Archive::Zip::Member->bitFlag()
 
-use constant GPBF_ENCRYPTED_MASK						=> 1 << 0;
-use constant GPBF_DEFLATING_COMPRESSION_MASK			=> 3 << 1;
-use constant GPBF_HAS_DATA_DESCRIPTOR_MASK				=> 1 << 3;
+use constant GPBF_ENCRYPTED_MASK             => 1 << 0;
+use constant GPBF_DEFLATING_COMPRESSION_MASK => 3 << 1;
+use constant GPBF_HAS_DATA_DESCRIPTOR_MASK   => 1 << 3;
 
 # deflating compression types, if compressionMethod == COMPRESSION_DEFLATED
 # ( Archive::Zip::Member->bitFlag() & GPBF_DEFLATING_COMPRESSION_MASK )
 
-use constant DEFLATING_COMPRESSION_NORMAL		=> 0 << 1;
-use constant DEFLATING_COMPRESSION_MAXIMUM		=> 1 << 1;
-use constant DEFLATING_COMPRESSION_FAST			=> 2 << 1;
-use constant DEFLATING_COMPRESSION_SUPER_FAST	=> 3 << 1;
+use constant DEFLATING_COMPRESSION_NORMAL     => 0 << 1;
+use constant DEFLATING_COMPRESSION_MAXIMUM    => 1 << 1;
+use constant DEFLATING_COMPRESSION_FAST       => 2 << 1;
+use constant DEFLATING_COMPRESSION_SUPER_FAST => 3 << 1;
 
 # compression method
 
-=head1 COMPRESSION
-
-Archive::Zip allows each member of a ZIP file to be compressed (using
-the Deflate algorithm) or uncompressed. Other compression algorithms
-that some versions of ZIP have been able to produce are not supported.
-
-Each member has two compression methods: the one it's stored as (this
-is always COMPRESSION_STORED for string and external file members),
-and the one you desire for the member in the zip file.
-These can be different, of course, so you can make a zip member that
-is not compressed out of one that is, and vice versa.
-You can inquire about the current compression and set
-the desired compression method:
-
-    my $member = $zip->memberNamed( 'xyz.txt' );
-    $member->compressionMethod();    # return current compression
-    # set to read uncompressed
-    $member->desiredCompressionMethod( COMPRESSION_STORED );
-    # set to read compressed
-    $member->desiredCompressionMethod( COMPRESSION_DEFLATED );
-
-There are two different compression methods:
-
-=over 4
-
-=item COMPRESSION_STORED
-
-file is stored (no compression)
-
-=item COMPRESSION_DEFLATED
-
-file is Deflated
-
-=back
-
-=head2 Compression Levels
-
-If a member's desiredCompressionMethod is COMPRESSION_DEFLATED,
-you can choose different compression levels. This choice may
-affect the speed of compression and decompression, as well as
-the size of the compressed member data.
-
-    $member->desiredCompressionLevel( 9 );
-
-The levels given can be:
-
-=over 4
-
-=item 0 or COMPRESSION_LEVEL_NONE
-
-This is the same as saying
-
-    $member->desiredCompressionMethod( COMPRESSION_STORED );
-
-=item 1 .. 9
-
-1 gives the best speed and worst compression, and 9 gives the best
-compression and worst speed.
-
-=item COMPRESSION_LEVEL_FASTEST
-
-This is a synonym for level 1.
-
-=item COMPRESSION_LEVEL_BEST_COMPRESSION
-
-This is a synonym for level 9.
-
-=item COMPRESSION_LEVEL_DEFAULT
-
-This gives a good compromise between speed and compression, and is
-currently equivalent to 6 (this is in the zlib code).
-
-This is the level that will be used if not specified.
-
-=back
-
-=cut
-
 # these two are the only ones supported in this module
-use constant COMPRESSION_STORED => 0;	# file is stored (no compression)
-use constant COMPRESSION_DEFLATED => 8;	# file is Deflated
+use constant COMPRESSION_STORED   => 0;    # file is stored (no compression)
+use constant COMPRESSION_DEFLATED => 8;    # file is Deflated
 
-use constant COMPRESSION_LEVEL_NONE => 0;
-use constant COMPRESSION_LEVEL_DEFAULT => -1;
-use constant COMPRESSION_LEVEL_FASTEST => 1;
+use constant COMPRESSION_LEVEL_NONE             => 0;
+use constant COMPRESSION_LEVEL_DEFAULT          => -1;
+use constant COMPRESSION_LEVEL_FASTEST          => 1;
 use constant COMPRESSION_LEVEL_BEST_COMPRESSION => 9;
 
 # internal file attribute bits
 # Found in Archive::Zip::Member::internalFileAttributes()
 
-use constant IFA_TEXT_FILE_MASK	=> 1;
-use constant IFA_TEXT_FILE		=> 1;	# file is apparently text
-use constant IFA_BINARY_FILE	=> 0;
+use constant IFA_TEXT_FILE_MASK => 1;
+use constant IFA_TEXT_FILE      => 1;      # file is apparently text
+use constant IFA_BINARY_FILE    => 0;
 
 # PKZIP file format miscellaneous constants (for internal use only)
 use constant SIGNATURE_FORMAT => "V";
 use constant SIGNATURE_LENGTH => 4;
 
-use constant LOCAL_FILE_HEADER_SIGNATURE	=> 0x04034b50;
-use constant LOCAL_FILE_HEADER_FORMAT		=> "v3 V4 v2";
-use constant LOCAL_FILE_HEADER_LENGTH		=> 26;
+use constant LOCAL_FILE_HEADER_SIGNATURE => 0x04034b50;
+use constant LOCAL_FILE_HEADER_FORMAT    => "v3 V4 v2";
+use constant LOCAL_FILE_HEADER_LENGTH    => 26;
 
-use constant DATA_DESCRIPTOR_FORMAT	=> "V3";
-use constant DATA_DESCRIPTOR_LENGTH	=> 12;
+use constant DATA_DESCRIPTOR_FORMAT => "V3";
+use constant DATA_DESCRIPTOR_LENGTH => 12;
 
 use constant CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE => 0x02014b50;
-use constant CENTRAL_DIRECTORY_FILE_HEADER_FORMAT => "C2 v3 V4 v5 V2";
-use constant CENTRAL_DIRECTORY_FILE_HEADER_LENGTH => 42;
+use constant CENTRAL_DIRECTORY_FILE_HEADER_FORMAT    => "C2 v3 V4 v5 V2";
+use constant CENTRAL_DIRECTORY_FILE_HEADER_LENGTH    => 42;
 
-use constant END_OF_CENTRAL_DIRECTORY_SIGNATURE => 0x06054b50;
-use constant END_OF_CENTRAL_DIRECTORY_SIGNATURE_STRING => pack( "V",
-	END_OF_CENTRAL_DIRECTORY_SIGNATURE );
+use constant END_OF_CENTRAL_DIRECTORY_SIGNATURE        => 0x06054b50;
+use constant END_OF_CENTRAL_DIRECTORY_SIGNATURE_STRING =>
+  pack( "V", END_OF_CENTRAL_DIRECTORY_SIGNATURE );
 use constant END_OF_CENTRAL_DIRECTORY_FORMAT => "v4 V2 v";
 use constant END_OF_CENTRAL_DIRECTORY_LENGTH => 18;
 
-use constant FA_AMIGA		=> 1;
-use constant FA_VAX_VMS		=> 2;
-use constant FA_VM_CMS		=> 4;
-use constant FA_ATARI_ST	=> 5;
-use constant FA_OS2_HPFS	=> 6;
-use constant FA_MACINTOSH	=> 7;
-use constant FA_Z_SYSTEM	=> 8;
-use constant FA_CPM			=> 9;
+use constant FA_AMIGA        => 1;
+use constant FA_VAX_VMS      => 2;
+use constant FA_VM_CMS       => 4;
+use constant FA_ATARI_ST     => 5;
+use constant FA_OS2_HPFS     => 6;
+use constant FA_MACINTOSH    => 7;
+use constant FA_Z_SYSTEM     => 8;
+use constant FA_CPM          => 9;
 use constant FA_WINDOWS_NTFS => 10;
 
-use constant GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK	=> 1 << 1;
-use constant GPBF_IMPLODING_3_SHANNON_FANO_TREES_MASK	=> 1 << 2;
-use constant GPBF_IS_COMPRESSED_PATCHED_DATA_MASK		=> 1 << 5;
+use constant GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK => 1 << 1;
+use constant GPBF_IMPLODING_3_SHANNON_FANO_TREES_MASK  => 1 << 2;
+use constant GPBF_IS_COMPRESSED_PATCHED_DATA_MASK      => 1 << 5;
 
 # the rest of these are not supported in this module
-use constant COMPRESSION_SHRUNK => 1;	# file is Shrunk
-use constant COMPRESSION_REDUCED_1 => 2;# file is Reduced CF=1
-use constant COMPRESSION_REDUCED_2 => 3;# file is Reduced CF=2
-use constant COMPRESSION_REDUCED_3 => 4;# file is Reduced CF=3
-use constant COMPRESSION_REDUCED_4 => 5;# file is Reduced CF=4
-use constant COMPRESSION_IMPLODED => 6;	# file is Imploded
-use constant COMPRESSION_TOKENIZED => 7;# reserved for Tokenizing compr.
-use constant COMPRESSION_DEFLATED_ENHANCED => 9; # reserved for enh. Deflating
+use constant COMPRESSION_SHRUNK    => 1;    # file is Shrunk
+use constant COMPRESSION_REDUCED_1 => 2;    # file is Reduced CF=1
+use constant COMPRESSION_REDUCED_2 => 3;    # file is Reduced CF=2
+use constant COMPRESSION_REDUCED_3 => 4;    # file is Reduced CF=3
+use constant COMPRESSION_REDUCED_4 => 5;    # file is Reduced CF=4
+use constant COMPRESSION_IMPLODED  => 6;    # file is Imploded
+use constant COMPRESSION_TOKENIZED => 7;    # reserved for Tokenizing compr.
+use constant COMPRESSION_DEFLATED_ENHANCED => 9;   # reserved for enh. Deflating
 use constant COMPRESSION_PKWARE_DATA_COMPRESSION_LIBRARY_IMPLODED => 10;
 
 # ------------------------- end of exportable constants ---------------------
 
-=head1  Archive::Zip methods
-
-The Archive::Zip class (and its invisible subclass Archive::Zip::Archive)
-implement generic zip file functionality.
-
-Creating a new Archive::Zip object actually makes an Archive::Zip::Archive
-object, but you don't have to worry about this unless you're subclassing.
-
-=cut
-
-=head2 Constructor
-
-=over 4
-
-=cut
-
-use constant ZIPARCHIVECLASS 	=> 'Archive::Zip::Archive';
-use constant ZIPMEMBERCLASS		=> 'Archive::Zip::Member';
-
-#--------------------------------
-
-=item new( [$fileName] )
-
-Make a new, empty zip archive.
-
-    my $zip = Archive::Zip->new();
-
-If an additional argument is passed, new() will call read() to read the
-contents of an archive:
-
-    my $zip = Archive::Zip->new( 'xyz.zip' );
-
-If a filename argument is passed and the read fails for any reason, new
-will return undef. For this reason, it may be better to call read
-separately.
-
-=cut
+use constant ZIPARCHIVECLASS => 'Archive::Zip::Archive';
+use constant ZIPMEMBERCLASS  => 'Archive::Zip::Member';
 
 sub new    # Archive::Zip
 {
 	my $class = shift;
 	return $class->ZIPARCHIVECLASS->new(@_);
 }
-
-=back
-
-=head2  Zip Archive Utility Methods
-
-These Archive::Zip methods may be called as functions or as object
-methods. Do not call them as class methods:
-
-    $zip = Archive::Zip->new();
-    $crc = Archive::Zip::computeCRC32( 'ghijkl' );    # OK
-    $crc = $zip->computeCRC32( 'ghijkl' );            # also OK
-
-    $crc = Archive::Zip->computeCRC32( 'ghijkl' );    # NOT OK
-
-=over 4
-
-=cut
-
-#--------------------------------
-
-=item Archive::Zip::computeCRC32( $string [, $crc] )
-
-This is a utility function that uses the Compress::Zlib CRC
-routine to compute a CRC-32.
-
-You can get the CRC of a string:
-
-    $crc = Archive::Zip::computeCRC32( $string );
-
-Or you can compute the running CRC:
-
-    $crc = 0;
-    $crc = Archive::Zip::computeCRC32( 'abcdef', $crc );
-    $crc = Archive::Zip::computeCRC32( 'ghijkl', $crc );
-
-=cut
 
 sub computeCRC32    # Archive::Zip
 {
@@ -492,54 +210,21 @@ sub computeCRC32    # Archive::Zip
 	return Compress::Zlib::crc32( $data, $crc );
 }
 
-#--------------------------------
-
-=item Archive::Zip::setChunkSize( $number )
-
-Change chunk size used for reading and writing.
-Currently, this defaults to 32K.
-This is not exportable, so you must call it like:
-
-    Archive::Zip::setChunkSize( 4096 );
-
-or as a method on a zip (though this is a global setting).
-Returns old chunk size.
-
-=cut
-
+# Report or change chunk size used for reading and writing.
+# Also sets Zlib's default buffer size (eventually).
 sub setChunkSize    # Archive::Zip
 {
 	my $chunkSize = shift;
 	$chunkSize = shift if ref($chunkSize);    # object method on zip?
 	my $oldChunkSize = $Archive::Zip::ChunkSize;
-	$Archive::Zip::ChunkSize = $chunkSize;
+	$Archive::Zip::ChunkSize = $chunkSize if ($chunkSize);
 	return $oldChunkSize;
 }
 
-#--------------------------------
-
-=item Archive::Zip::setErrorHandler( \&subroutine )
-
-Change the subroutine called with error strings.
-This defaults to \&Carp::carp, but you may want to change
-it to get the error strings.
-
-This is not exportable, so you must call it like:
-
-    Archive::Zip::setErrorHandler( \&myErrorHandler );
-
-If no error handler is passed, resets handler to default.
-
-Returns old error handler.
-
-Note that if you call Carp::carp or a similar routine
-or if you're chaining to the default error handler
-from your error handler, you may want to increment the number
-of caller levels that are skipped (do not just set it to a number):
-
-    $Carp::CarpLevel++;
-
-=cut
+sub chunkSize    # Archive::Zip
+{
+	return $Archive::Zip::ChunkSize;
+}
 
 sub setErrorHandler (&)    # Archive::Zip
 {
@@ -643,9 +328,85 @@ sub _newFileHandle    # Archive::Zip
 	return ( $status, $handle );
 }
 
-=back
+# Utility method to make and open a temp file.
+# Will create $temp_dir if it doesn't exist.
+# Returns file handle and name:
+#
+# my ($fh, $name) = Archive::Zip::tempFile();
+# my ($fh, $name) = Archive::Zip::tempFile('mytempdir');
+#
+BEGIN { $Archive::Zip::TempSequence = 0 }
 
-=cut
+sub tempFileName    # Archive::Zip
+{
+	my $temp_dir = shift ()
+	  || ( -d '/tmp' ? '/tmp' : $ENV{TMPDIR} || $ENV{TEMP} || '.' );
+	unless ( -d $temp_dir )
+	{
+		mkdir($temp_dir) or die "Can't create temp directory $temp_dir\: $!\n";
+	}
+	my $base_name =
+	  sprintf( "%d-%d.%d", $$, time(), $Archive::Zip::TempSequence++ );
+	return File::Spec->canonpath(
+		File::Spec->catpath( '', $temp_dir, $base_name ) );
+}
+
+sub tempFile    # Archive::Zip
+{
+	my $full_name = tempFileName(@_);
+	my $fh = IO::File->new( $full_name, '+>' );
+	return defined($fh) ? ( $fh, $full_name ) : ();
+}
+
+# Return the normalized directory name as used in a zip file (path
+# separators become slashes, etc.). 
+# Will translate internal slashes in path components (i.e. on Macs) to
+# underscores.  Discards volume names.
+# When $forceDir is set, returns paths with trailing slashes (or arrays
+# with trailing blank members).
+#
+# If third argument is a reference, returns volume information there.
+#
+# input         output
+# .				('.')	'.'
+# ./a			('a')	a
+# ./a/b			('a','b')	a/b
+# ./a/b/		('a','b')	a/b
+# a/b/			('a','b')	a/b
+# /a/b/			('','a','b')	/a/b
+# c:\a\b\c.doc	('','a','b','c.doc')	/a/b/c.doc		# on Windoze
+# "i/o maps:whatever"	('i_o maps', 'whatever')  "i_o maps/whatever"	# on Macs
+sub _asZipDirName    # Archive::Zip
+{
+	my $name      = shift;
+	my $forceDir  = shift;
+	my $volReturn = shift;
+	my ( $volume, $directories, $file ) =
+	  File::Spec->splitpath( File::Spec->canonpath($name), $forceDir );
+	$$volReturn = $volume if ( ref($volReturn) );
+	my @dirs = map { $_ =~ s{/}{_}g; $_ } File::Spec->splitdir($directories);
+	if ( @dirs > 0 ) { pop (@dirs) unless $dirs[-1] }   # remove empty component
+	push ( @dirs, $file || '' );
+	return wantarray ? @dirs : join ( '/', @dirs );
+}
+
+# Return a local name for a zip name.
+# Assume a directory if zip name has trailing slash.
+# Takes an optional basename.
+#
+sub _asLocalName    # Archive::Zip
+{
+	my $name     = shift;
+	my $slash    = qr{/};
+	my @paths    = split ( $slash, $name );
+	my $basename = shift;
+	$basename = pop (@paths) unless defined($basename);
+	my $localDirs = File::Spec->catdir(@paths);
+	my ( $vol, $wd, undef ) = File::Spec->splitpath( File::Spec->curdir(), 1 );
+	my $localName = File::Spec->catpath( $vol, $localDirs, $basename );
+	$localName = File::Spec->rel2abs($localName);
+	return $localName;
+}
 
 # ----------------------------------------------------------------------
 # class Archive::Zip::Archive (concrete)
@@ -653,6 +414,9 @@ sub _newFileHandle    # Archive::Zip
 # ----------------------------------------------------------------------
 package Archive::Zip::Archive;
 use File::Path;
+use File::Find();
+use File::Spec();
+use File::Copy();
 use File::Basename;
 
 use vars qw( @ISA );
@@ -664,7 +428,6 @@ BEGIN
 	  :UTILITY_METHODS );
 }
 
-#--------------------------------
 # Note that this returns undef on read errors, else new zip object.
 
 sub new    # Archive::Zip::Archive
@@ -681,6 +444,7 @@ sub new    # Archive::Zip::Archive
 		  'writeCentralDirectoryOffset' => 0,
 		  'zipfileComment'              => '',
 		  'eocdOffset'                  => 0,
+		  'fileName'                    => ''
 	  },
 	  $class
 	);
@@ -693,47 +457,15 @@ sub new    # Archive::Zip::Archive
 	return $self;
 }
 
-=head2 Zip Archive Accessors
-
-=over 4
-
-=cut
-
-#--------------------------------
-
-=item members()
-
-Return a copy of my members array
-
-    my @members = $zip->members();
-
-=cut
-
 sub members    # Archive::Zip::Archive
 {
 	@{ shift->{'members'} };
 }
 
-#--------------------------------
-
-=item numberOfMembers()
-
-Return the number of members I have
-
-=cut
-
 sub numberOfMembers    # Archive::Zip::Archive
 {
 	scalar( shift->members() );
 }
-
-#--------------------------------
-
-=item memberNames()
-
-Return a list of the (internal) file names of my members
-
-=cut
 
 sub memberNames    # Archive::Zip::Archive
 {
@@ -741,34 +473,16 @@ sub memberNames    # Archive::Zip::Archive
 	return map { $_->fileName() } $self->members();
 }
 
-#--------------------------------
-
-=item memberNamed( $string )
-
-Return ref to member whose filename equals given filename or undef
-
-=cut
-
+# return ref to member with given name or undef
 sub memberNamed    # Archive::Zip::Archive
 {
 	my ( $self, $fileName ) = @_;
-	my ($retval) = grep { $_->fileName() eq $fileName } $self->members();
-	return $retval;
+	foreach my $member ( $self->members() )
+	{
+		return $member if $member->fileName() eq $fileName;
+	}
+	return undef;
 }
-
-#--------------------------------
-
-=item membersMatching( $regex )
-
-Return array of members whose filenames match given regular
-expression in list context.
-Returns number of matching members in scalar context.
-
-    my @textFileMembers = $zip->membersMatching( '.*\.txt' );
-    # or
-    my $numberOfTextFiles = $zip->membersMatching( '.*\.txt' );
-
-=cut
 
 sub membersMatching    # Archive::Zip::Archive
 {
@@ -776,103 +490,35 @@ sub membersMatching    # Archive::Zip::Archive
 	return grep { $_->fileName() =~ /$pattern/ } $self->members();
 }
 
-#--------------------------------
-
-=item diskNumber()
-
-Return the disk that I start on.
-Not used for writing zips, but might be interesting if you read a zip in.
-This had better be 0, as Archive::Zip does not handle multi-volume archives.
-
-=cut
-
 sub diskNumber    # Archive::Zip::Archive
 {
 	shift->{'diskNumber'};
 }
-
-#--------------------------------
-
-=item diskNumberWithStartOfCentralDirectory()
-
-Return the disk number that holds the beginning of the central directory.
-Not used for writing zips, but might be interesting if you read a zip in.
-This had better be 0, as Archive::Zip does not handle multi-volume archives.
-
-=cut
 
 sub diskNumberWithStartOfCentralDirectory    # Archive::Zip::Archive
 {
 	shift->{'diskNumberWithStartOfCentralDirectory'};
 }
 
-#--------------------------------
-
-=item numberOfCentralDirectoriesOnThisDisk()
-
-Return the number of CD structures on this disk.
-Not used for writing zips, but might be interesting if you read a zip in.
-
-=cut
-
 sub numberOfCentralDirectoriesOnThisDisk    # Archive::Zip::Archive
 {
 	shift->{'numberOfCentralDirectoriesOnThisDisk'};
 }
-
-#--------------------------------
-
-=item numberOfCentralDirectories()
-
-Return the number of CD structures in the whole zip.
-Not used for writing zips, but might be interesting if you read a zip in.
-
-=cut
 
 sub numberOfCentralDirectories    # Archive::Zip::Archive
 {
 	shift->{'numberOfCentralDirectories'};
 }
 
-#--------------------------------
-
-=item centralDirectorySize()
-
-Returns central directory size, as read from an external zip file.
-Not used for writing zips, but might be interesting if you read a zip in.
-
-=cut
-
 sub centralDirectorySize    # Archive::Zip::Archive
 {
 	shift->{'centralDirectorySize'};
 }
 
-#--------------------------------
-
-=item centralDirectoryOffsetWRTStartingDiskNumber()
-
-Returns the offset into the zip file where the CD begins.
-Not used for writing zips, but might be interesting if you read a zip in.
-
-=cut
-
 sub centralDirectoryOffsetWRTStartingDiskNumber    # Archive::Zip::Archive
 {
 	shift->{'centralDirectoryOffsetWRTStartingDiskNumber'};
 }
-
-#--------------------------------
-
-=item zipfileComment( [$string] )
-
-Get or set the zipfile comment.
-Returns the old comment.
-
-    print $zip->zipfileComment();
-    $zip->zipfileComment( 'New Comment' );
-
-=cut
 
 sub zipfileComment    # Archive::Zip::Archive
 {
@@ -885,54 +531,16 @@ sub zipfileComment    # Archive::Zip::Archive
 	return $comment;
 }
 
-#--------------------------------
-
-=item eocdOffset()
-
-Returns the (unexpected) number of bytes between where the EOCD was found and
-where it expected to be. This is normally 0, but would be positive if something
-(a virus, perhaps) had added bytes somewhere before the EOCD.  Not used for
-writing zips, but might be interesting if you read a zip in.
-
-Here is an example of how you can diagnose this:
-
-  my $zip = Archive::Zip->new('somefile.zip');
-  if ($zip->eocdOffset())
-  {
-    warn "A virus has added ", $zip->eocdOffset, " bytes of garbage\n";
-  }
-
-=back
-
-=cut
-
 sub eocdOffset    # Archive::Zip::Archive
 {
 	shift->{'eocdOffset'};
 }
 
-#--------------------------------
-
-=head2 Zip Archive Member Operations
-
-Various operations on a zip file modify members.
-When a member is passed as an argument, you can either use a reference
-to the member itself, or the name of a member. Of course, using the
-name requires that names be unique within a zip (this is not enforced).
-
-=over 4
-
-=cut
-
-#--------------------------------
-
-=item removeMember( $memberOrName )
-
-Remove and return the given member, or match its name and remove it.
-Returns undef if member name doesn't exist in this Zip.
-No-op if member does not belong to this zip.
-
-=cut
+# Return the name of the file last read.
+sub fileName    # Archive::Zip::Archive
+{
+	shift->{'fileName'};
+}
 
 sub removeMember    # Archive::Zip::Archive
 {
@@ -943,21 +551,6 @@ sub removeMember    # Archive::Zip::Archive
 	$self->{'members'} = \@newMembers;
 	return $member;
 }
-
-#--------------------------------
-
-=item replaceMember( $memberOrName, $newMember )
-
-Remove and return the given member, or match its name and remove it.
-Replace with new member.
-Returns undef if member name doesn't exist in this Zip.
-
-    my $member1 = $zip->removeMember( 'xyz' );
-    my $member2 = $zip->replaceMember( 'abc', $member1 );
-    # now, $member2 (named 'abc') is not in $zip,
-    # and $member1 (named 'xyz') is, having taken $member2's place.
-
-=cut
 
 sub replaceMember    # Archive::Zip::Archive
 {
@@ -970,51 +563,30 @@ sub replaceMember    # Archive::Zip::Archive
 	return $oldMember;
 }
 
-#--------------------------------
-
-=item extractMember( $memberOrName [, $extractedName ] )
-
-Extract the given member, or match its name and extract it.
-Returns undef if member doesn't exist in this Zip.
-If optional second arg is given, use it as the name of the
-extracted member. Otherwise, the internal filename of the member is used
-as the name of the extracted file or directory.
-
-All necessary directories will be created.
-
-Returns C<AZ_OK> on success.
-
-=cut
-
 sub extractMember    # Archive::Zip::Archive
 {
 	my $self   = shift;
 	my $member = shift;
 	$member = $self->memberNamed($member) unless ref($member);
 	return _error('member not found') unless $member;
-	my $name = shift;
-	$name = $member->fileName() if not $name;
-	my $dirName = dirname($name);
+	my $name = shift;    # local FS name if given
+	my ( $volumeName, $dirName, $fileName );
+	if ( defined($name) )
+	{
+		( $volumeName, $dirName, $fileName ) = File::Spec->splitpath($name);
+		$dirName = File::Spec->catpath( $volumeName, $dirName, '' );
+	}
+	else
+	{
+		$name = $member->fileName();
+		( $dirName = $name ) =~ s{[^/]*$}{};
+		$dirName = Archive::Zip::_asLocalName($dirName);
+		$name    = Archive::Zip::_asLocalName($name);
+	}
 	mkpath($dirName) if ( !-d $dirName );
 	return _ioError("can't create dir $dirName") if ( !-d $dirName );
 	return $member->extractToFileNamed( $name, @_ );
 }
-
-#--------------------------------
-
-=item extractMemberWithoutPaths( $memberOrName [, $extractedName ] )
-
-Extract the given member, or match its name and extract it.
-Does not use path information (extracts into the current directory).
-Returns undef if member doesn't exist in this Zip.
-If optional second arg is given, use it as the name of the
-extracted member (its paths will be deleted too).
-Otherwise, the internal filename of the member (minus paths) is used
-as the name of the extracted file or directory.
-
-Returns C<AZ_OK> on success.
-
-=cut
 
 sub extractMemberWithoutPaths    # Archive::Zip::Archive
 {
@@ -1022,27 +594,16 @@ sub extractMemberWithoutPaths    # Archive::Zip::Archive
 	my $member = shift;
 	$member = $self->memberNamed($member) unless ref($member);
 	return _error('member not found') unless $member;
-	return if $member->isDirectory;
+	return if $member->isDirectory();
 	my $name = shift;
-	$name = $member->fileName() if not $name;
-	$name = basename($name);
+	unless ($name)
+	{
+		$name = $member->fileName();
+		$name =~ s{.*/}{}; # strip off directories, if any
+		$name = Archive::Zip::_asLocalName($name);
+	}
 	return $member->extractToFileNamed( $name, @_ );
 }
-
-#--------------------------------
-
-=item addMember( $member )
-
-Append a member (possibly from another zip file) to the zip file.
-Returns the new member.
-Generally, you will use addFile(), addDirectory(), addString(), or read()
-to add members.
-
-    # Move member named 'abc' to end of zip:
-    my $member = $zip->removeMember( 'abc' );
-    $zip->addMember( $member );
-
-=cut
 
 sub addMember    # Archive::Zip::Archive
 {
@@ -1050,27 +611,6 @@ sub addMember    # Archive::Zip::Archive
 	push ( @{ $self->{'members'} }, $newMember ) if $newMember;
 	return $newMember;
 }
-
-#--------------------------------
-
-=item addFile( $fileName [, $newName ] )
-
-Append a member whose data comes from an external file,
-returning the member or undef.
-The member will have its file name set to the name of the external
-file, and its desiredCompressionMethod set to COMPRESSION_DEFLATED.
-The file attributes and last modification time will be set from the file.
-
-If the name given does not represent a readable plain file or symbolic link,
-undef will be returned.
-
-The text mode bit will be set if the contents appears to be text (as returned
-by the C<-T> perl operator).
-
-The optional second argument sets the internal file name to
-something different than the given $fileName.
-
-=cut
 
 sub addFile    # Archive::Zip::Archive
 {
@@ -1082,21 +622,6 @@ sub addFile    # Archive::Zip::Archive
 	return $newMember;
 }
 
-#--------------------------------
-
-=item addString( $stringOrStringRef [, $name] )
-
-Append a member created from the given string or string reference.
-The name is given by the optional second argument.
-Returns the new member.
-
-The last modification time will be set to now,
-and the file attributes will be set to permissive defaults.
-
-    my $member = $zip->addString( 'This is a test', 'test.txt' );
-
-=cut
-
 sub addString    # Archive::Zip::Archive
 {
 	my $self      = shift;
@@ -1104,44 +629,34 @@ sub addString    # Archive::Zip::Archive
 	return $self->addMember($newMember);
 }
 
-#--------------------------------
-
-=item addDirectory( $directoryName [, $fileName ] )
-
-Append a member created from the given directory name.
-The directory name does not have to name an existing directory.
-If the named directory exists, the file modification time and permissions
-are set from the existing directory, otherwise they are set to now and
-permissive default permissions.
-The optional second argument sets the name of the archive member
-(which defaults to $directoryName)
-
-Returns the new member.
-
-=cut
-
 sub addDirectory    # Archive::Zip::Archive
 {
 	my ( $self, $name, $newName ) = @_;
-	my $newMember = $self->ZIPMEMBERCLASS->newDirectoryNamed($name);
+	my $newMember = $self->ZIPMEMBERCLASS->newDirectoryNamed($name, $newName);
 	$self->addMember($newMember);
-	$newMember->fileName($newName) if defined($newName);
 	return $newMember;
 }
 
-#--------------------------------
+# add either a file or a directory.
 
-=item contents( $memberOrMemberName [, $newContents ] )
-
-Returns the uncompressed data for a particular member, or undef.
-
-    print "xyz.txt contains " . $zip->contents( 'xyz.txt' );
-
-Also can change the contents of a member:
-
-    $zip->contents( 'xyz.txt', 'This is the new contents' );
-
-=cut
+sub addFileOrDirectory
+{
+	my ( $self, $name, $newName ) = @_;
+	if ( -f $name )
+	{
+		( $newName =~ s{/$}{} ) if $newName;
+		return $self->addFile( $name, $newName );
+	}
+	elsif ( -d $name )
+	{
+		( $newName =~ s{[^/]$}{&/} ) if $newName;
+		return $self->addDirectory( $name, $newName );
+	}
+	else
+	{
+		return _error("$name is neither a file nor a directory");
+	}
+}
 
 sub contents    # Archive::Zip::Archive
 {
@@ -1151,76 +666,17 @@ sub contents    # Archive::Zip::Archive
 	return $member->contents($newContents);
 }
 
-#--------------------------------
-
-=back
-
-=head2 Zip Archive I/O operations
-
-A Zip archive can be written to a file or file handle,
-or read from one.
-
-=over 4
-
-=cut
-
-#--------------------------------
-
-=item writeToFileNamed( $fileName )
-
-Write a zip archive to named file.
-Returns C<AZ_OK> on success.
-
-Note that if you use the same name as an existing
-zip file that you read in, you will clobber ZipFileMembers.
-So instead, write to a different file name, then delete
-the original.
-
-    my $status = $zip->writeToFileNamed( 'xx.zip' );
-    die "error somewhere" if $status != AZ_OK;
-
-Here's an example of writing back to the original file,
-when the original file may or may not exist.
-Note the construction of a tempfile in the same directory
-so that C<rename> will work:
-
-    use Archive::Zip;
-    use File::Temp;
-    use File::Basename;
-    
-    my $target = 'somefile.zip';
-    my $zip = Archive::Zip->new();
-    $zip->read($target) && die "can't read $target\n"
-       if -f $target;
-    #
-    # now add/delete/rename members, etc.
-    #
-    if (-f $target) # existing file?
-    {
-      my ($tmpfh, $tmpname) = File::Temp::tempfile( DIR => dirname($target));
-      $zip->writeToFileHandle( $tmpfh ) && die "Can't write to $tmpname\n";
-      $tmpfh->close();
-      unlink($target) or die "can't remove $target: $!\n";
-      rename($tmpname, $target) or die "can't rename $target: $!\n";
-    }
-    else
-    {
-        $zip->writeToFileNamed($target) && die "can't write to $target\n";
-    }
-
-=cut
-
 sub writeToFileNamed    # Archive::Zip::Archive
 {
 	my $self     = shift;
-	my $fileName = shift;
+	my $fileName = shift;	# local FS format
 	foreach my $member ( $self->members() )
 	{
 		if ( $member->_usesFileNamed($fileName) )
 		{
 			return _error( "$fileName is needed by member "
 				. $member->fileName()
-				. "; try renaming output file" );
+				. "; consider using overwrite() or overwriteAs() instead." );
 		}
 	}
 	my ( $status, $fh ) = _newFileHandle( $fileName, 'w' );
@@ -1230,36 +686,8 @@ sub writeToFileNamed    # Archive::Zip::Archive
 	return $retval;
 }
 
-#--------------------------------
-
-=item writeToFileHandle( $fileHandle [, $seekable] )
-
-Write a zip archive to a file handle.
-Return AZ_OK on success.
-
-The optional second arg tells whether or not to try to seek backwards
-to re-write headers.
-If not provided, it is set if the Perl C<-f> test returns true.
-This could fail on some operating systems, though.
-
-    my $fh = IO::File->new( 'someFile.zip', 'w' );
-    if ( $zip->writeToFileHandle( $fh ) != AZ_OK)
-	{
-		# error handling
-	}
-
-If you pass a file handle that is not seekable (like if you're writing
-to a pipe or a socket), pass a false second argument:
-
-    my $fh = IO::File->new( '| cat > somefile.zip', 'w' );
-    $zip->writeToFileHandle( $fh, 0 );   # fh is not seekable
-
-If this method fails during the write of a member, that member
-and all following it will return false from C<wasWritten()>.
-See writeCentralDirectory() for a way to deal with this.
-
-=cut
-
+# It is possible to write data to the FH before calling this,
+# perhaps to make a self-extracting archive.
 sub writeToFileHandle    # Archive::Zip::Archive
 {
 	my $self         = shift;
@@ -1267,7 +695,10 @@ sub writeToFileHandle    # Archive::Zip::Archive
 	my $fhIsSeekable = @_ ? shift: _isSeekable($fh);
 	_binmode($fh);
 
-	my $offset = 0;
+	# Find out where the current position is.
+	my $offset = $fhIsSeekable ? $fh->tell() : 0;
+	$offset = 0 if $offset < 0;
+
 	foreach my $member ( $self->members() )
 	{
 		my $retval = $member->_writeToFileHandle( $fh, $fhIsSeekable, $offset );
@@ -1280,6 +711,67 @@ sub writeToFileHandle    # Archive::Zip::Archive
 		$self->{'writeCentralDirectoryOffset'} = $offset;
 	}
 	return $self->writeCentralDirectory($fh);
+}
+
+# Write zip back to the original file,
+# as safely as possible.
+# Returns AZ_OK if successful.
+sub overwrite    # Archive::Zip::Archive
+{
+	my $self = shift;
+	return $self->overwriteAs( $self->{'fileName'} );
+}
+
+# Write zip to the specified file,
+# as safely as possible.
+# Returns AZ_OK if successful.
+sub overwriteAs    # Archive::Zip::Archive
+{
+	my $self    = shift;
+	my $zipName = shift || return _error("no filename in overwriteAs()");
+
+	my ( $fh, $tempName ) = Archive::Zip::tempFile();
+	return _error( "Can't open temp file", $! ) unless $fh;
+	( my $backupName = $zipName ) =~ s{\.[^.]*$}{.zbk};
+	my $status;
+
+	if ( ( $status = $self->writeToFileHandle($fh) ) == AZ_OK )
+	{
+		my $err;
+		$fh->close();
+
+		# rename the zip
+		if ( -f $zipName && !rename( $zipName, $backupName ) )
+		{
+			$err = $!;
+			unlink($tempName);
+			return _error( "Can't rename $zipName as $backupName", $err );
+		}
+
+		# move the temp to the original name (possibly copying)
+		unless ( File::Copy::move( $tempName, $zipName ) )
+		{
+			$err = $!;
+			rename( $backupName, $zipName );
+			unlink($tempName);
+			return _error( "Can't move $tempName to $zipName", $err );
+		}
+
+		# unlink the backup
+		if ( -f $backupName && !unlink($backupName) )
+		{
+			$err = $!;
+			return _error( "Can't unlink $backupName", $err );
+		}
+		return AZ_OK;
+	}
+	else
+	{
+		$fh->close();
+		unlink($tempName);
+		_printError("Can't write to $tempName");
+		return $status;
+	}
 }
 
 # Returns next signature from given file handle, leaves
@@ -1303,14 +795,14 @@ sub _readSignature    # Archive::Zip::Archive
 		and $signature != LOCAL_FILE_HEADER_SIGNATURE
 		and $signature != END_OF_CENTRAL_DIRECTORY_SIGNATURE )
 	{
-		$status = _formatError(
-			sprintf(
-				"bad signature: 0x%08x at offset %d in file \"%s\"",
-				$signature,
-				$fh->tell() - SIGNATURE_LENGTH,
-				$fileName
-			)
-		);
+		my $errmsg = sprintf( "bad signature: 0x%08x", $signature );
+		if ( _isSeekable( $self->fh() ) )
+		{
+			$errmsg .=
+			  sprintf( " at offset %d", $fh->tell() - SIGNATURE_LENGTH );
+		}
+
+		$status = _formatError("$errmsg in file $fileName");
 	}
 
 	return ( $status, $signature );
@@ -1356,35 +848,7 @@ sub _writeEndOfCentralDirectory    # Archive::Zip::Archive
 	return AZ_OK;
 }
 
-=item writeCentralDirectory( $fileHandle [, $offset ] )
-
-Writes the central directory structure to the given file handle.
-Returns AZ_OK on success.
-
-If given an $offset, will seek to that point before writing.
-
-This can be used for recovery in cases where writeToFileHandle or
-writeToFileNamed returns an IO error because of running out of space on the
-destination file.
-
-You can truncate the zip by seeking backwards and then writing the
-directory:
-
-    my $fh = IO::File->new( 'someFile.zip', 'w' );
-	my $retval = $zip->writeToFileHandle( $fh );
-    if ( $retval == AZ_IO_ERROR )
-	{
-		my @unwritten = grep { not $_->wasWritten() } $zip->members();
-		if (@unwritten)
-		{
-			$zip->removeMember( $member ) foreach my $member ( @unwritten );
-			$zip->writeCentralDirectory( $fh,
-				$unwritten[0]->writeLocalHeaderRelativeOffset());
-		}
-	}
-
-=cut
-
+# $offset can be specified to truncate a zip file.
 sub writeCentralDirectory    # Archive::Zip::Archive
 {
 	my ( $self, $fh, $offset ) = @_;
@@ -1410,18 +874,6 @@ sub writeCentralDirectory    # Archive::Zip::Archive
 	return $self->_writeEndOfCentralDirectory($fh);
 }
 
-#--------------------------------
-
-=item read( $fileName )
-
-Read zipfile headers from a zip file, appending new members.
-Returns C<AZ_OK> or error code.
-
-    my $zipFile = Archive::Zip->new();
-    my $status = $zipFile->read( '/some/FileName.zip' );
-
-=cut
-
 sub read    # Archive::Zip::Archive
 {
 	my $self     = shift;
@@ -1434,24 +886,9 @@ sub read    # Archive::Zip::Archive
 	return $status if $status != AZ_OK;
 
 	$fh->close();
+	$self->{'fileName'} = $fileName;
 	return AZ_OK;
 }
-
-#--------------------------------
-
-=item readFromFileHandle( $fileHandle, $filename )
-
-Read zipfile headers from an already-opened file handle,
-appending new members. Does not close the file handle.
-Returns C<AZ_OK> or error code.
-
-    my $fh = IO::File->new( '/some/FileName.zip', 'r' );
-    my $zip1 = Archive::Zip->new();
-    my $status = $zip1->readFromFileHandle( $fh );
-    my $zip2 = Archive::Zip->new();
-    $status = $zip2->readFromFileHandle( $fh );
-
-=cut
 
 sub readFromFileHandle    # Archive::Zip::Archive
 {
@@ -1498,6 +935,7 @@ sub readFromFileHandle    # Archive::Zip::Archive
 		push ( @{ $self->{'members'} }, $newMember );
 	}
 
+	$self->{'fileName'} = "$fh";
 	return AZ_OK;
 }
 
@@ -1592,22 +1030,86 @@ sub _findEndOfCentralDirectory    # Archive::Zip::Archive
 	}
 }
 
-=back
+sub addTree    # Archive::Zip::Archive
+{
+	my $self = shift;
+	my $root = shift or return _error("root arg missing in call to addTree()");
+	my $dest = shift || '';
+	my $pred = shift || sub { -r };
+	my @files;
+	File::Find::find(
+		{
+			no_chdir => 1,    # make sure that $_ is same as $File::Find::name
+			wanted => sub { push ( @files, $_ ) if &$pred },
+		},
+		$root
+	);
 
-=head1 MEMBER OPERATIONS
+	my $rootZipName =
+	  Archive::Zip::_asZipDirName( $root, 1 );    # with trailing slash
+	my $pattern = $rootZipName eq './' ? qr{^} : qr{^\Q$rootZipName\E};
 
-=head2 Member Class Methods
+	$dest = Archive::Zip::_asZipDirName( $dest, 1 );    # with trailing slash
 
-Several constructors allow you to construct members without adding
-them to a zip archive.
+	foreach my $fileName (@files)
+	{
+		my $isDir       = -d $fileName;
+		my $archiveName =
+		  Archive::Zip::_asZipDirName( $fileName, $isDir )
+		  ;    # normalize, remove leading ./
+		if ( $archiveName eq $rootZipName ) { $archiveName = $dest }
+		else { $archiveName =~ s{$pattern}{$dest} }
+		next if $archiveName =~ m{^\.?/?$};    # skip current dir
+		my $member =
+		  $isDir 
+		  ? $self->addDirectory( $fileName, $archiveName )
+		  : $self->addFile( $fileName, $archiveName );
+		return _error("add $fileName failed in addTree()") if !$member;
+	}
+	return AZ_OK;
+}
 
-These work the same as the addFile(), addDirectory(), and addString()
-zip instance methods described above, but they don't add the new members
-to a zip.
+sub addTreeMatching    # Archive::Zip::Archive
+{
+	my $self = shift;
+	my $root = shift
+	  or return _error("root arg missing in call to addTreeMatching()");
+	my $dest = shift || '';
+	my $pattern = shift
+	  or return _error("pattern missing in call to addTreeMatching()");
+	$pattern = qr{$pattern};
+	my $pred    = shift;
+	my $matcher =
+	  $pred ? sub { m{$pattern} && &$pred } : sub { m{$pattern} && -r };
+	return $self->addTree( $root, $dest, $matcher );
+}
 
-=over 4
+sub extractTree    # Archive::Zip::Archive
+{
+	my $self = shift ();
+	my $root = shift () || '';
+	$root =
+	  Archive::Zip::_asZipDirName( $root, 1 );    # with trailing slash, no vol
+	my $dest = shift || '.';
+	my $volume;
+	$dest =
+	  Archive::Zip::_asZipDirName( $dest, 1, \$volume )
+	  ;    # Unix, with trailing slash
+	my $pattern = qr{^\Q$root};
+	my @members = $self->membersMatching($pattern);
+	my $slash   = qr{/};
 
-=cut
+	foreach my $member (@members)
+	{
+		my $fileName = $member->fileName();    # in Unix format
+		$fileName =~ s{$pattern}{$dest};       # in Unix format
+		                                       # convert to platform format:
+		$fileName = Archive::Zip::_asLocalName($fileName);
+		my $status = $member->extractToFileNamed($fileName);
+		return $status if $status != AZ_OK;
+	}
+	return AZ_OK;
+}
 
 # ----------------------------------------------------------------------
 # class Archive::Zip::Member
@@ -1649,17 +1151,6 @@ sub _newFromZipFile    # Archive::Zip::Member
 	return $self;
 }
 
-#--------------------------------
-
-=item Archive::Zip::Member->newFromString( $stringOrStringRef [, $fileName] )
-
-Construct a new member from the given string. Returns undef on error.
-
-    my $member = Archive::Zip::Member->newFromString( 'This is a test',
-                                                     'xyz.txt' );
-
-=cut
-
 sub newFromString    # Archive::Zip::Member
 {
 	my $class = shift;
@@ -1667,33 +1158,12 @@ sub newFromString    # Archive::Zip::Member
 	return $self;
 }
 
-#--------------------------------
-
-=item newFromFile( $fileName )
-
-Construct a new member from the given file. Returns undef on error.
-
-    my $member = Archive::Zip::Member->newFromFile( 'xyz.txt' );
-
-=cut
-
 sub newFromFile    # Archive::Zip::Member
 {
 	my $class = shift;
 	my $self  = $class->NEWFILEMEMBERCLASS->_newFromFileNamed(@_);
 	return $self;
 }
-
-#--------------------------------
-
-=item newDirectoryNamed( $directoryName )
-
-Construct a new member from the given directory.
-Returns undef on error.
-
-    my $member = Archive::Zip::Member->newDirectoryNamed( 'CVS/' );
-
-=cut
 
 sub newDirectoryNamed    # Archive::Zip::Member
 {
@@ -1744,37 +1214,10 @@ sub _become    # Archive::Zip::Member
 	return bless( $_[0], $_[1] );
 }
 
-=back
-
-=head2 Member Simple accessors
-
-These methods get (and/or set) member attribute values.
-
-=over 4
-
-=cut
-
-#--------------------------------
-
-=item versionMadeBy()
-
-Gets the field from my member header.
-
-=cut
-
 sub versionMadeBy    # Archive::Zip::Member
 {
 	shift->{'versionMadeBy'};
 }
-
-#--------------------------------
-
-=item fileAttributeFormat( [$format] )
-
-Gets or sets the field from the member header.
-These are C<FA_*> values.
-
-=cut
 
 sub fileAttributeFormat    # Archive::Zip::Member
 {
@@ -1783,67 +1226,20 @@ sub fileAttributeFormat    # Archive::Zip::Member
 	  : $_[0]->{'fileAttributeFormat'};
 }
 
-#--------------------------------
-
-=item versionNeededToExtract()
-
-Gets the field from my member header.
-
-=cut
-
 sub versionNeededToExtract    # Archive::Zip::Member
 {
 	shift->{'versionNeededToExtract'};
 }
-
-#--------------------------------
-
-=item bitFlag()
-
-Gets the general purpose bit field from my member header.
-This is where the C<GPBF_*> bits live.
-
-=cut
 
 sub bitFlag    # Archive::Zip::Member
 {
 	shift->{'bitFlag'};
 }
 
-#--------------------------------
-
-=item compressionMethod()
-
-Returns my compression method. This is the method that is
-currently being used to compress my data.
-
-This will be COMPRESSION_STORED for added string or file members,
-or any of the C<COMPRESSION_*> values for members from a zip file.
-However, this module can only handle members whose data is in
-COMPRESSION_STORED or COMPRESSION_DEFLATED format.
-
-=cut
-
 sub compressionMethod    # Archive::Zip::Member
 {
 	shift->{'compressionMethod'};
 }
-
-#--------------------------------
-
-=item desiredCompressionMethod( [$method] )
-
-Get or set my desiredCompressionMethod
-This is the method that will be used to write.
-Returns prior desiredCompressionMethod.
-
-Only COMPRESSION_DEFLATED or COMPRESSION_STORED are valid arguments.
-
-Changing to COMPRESSION_STORED will change my desiredCompressionLevel
-to 0; changing to COMPRESSION_DEFLATED will change my
-desiredCompressionLevel to COMPRESSION_LEVEL_DEFAULT.
-
-=cut
 
 sub desiredCompressionMethod    # Archive::Zip::Member
 {
@@ -1865,24 +1261,6 @@ sub desiredCompressionMethod    # Archive::Zip::Member
 	return $oldDesiredCompressionMethod;
 }
 
-#--------------------------------
-
-=item desiredCompressionLevel( [$method] )
-
-Get or set my desiredCompressionLevel
-This is the method that will be used to write.
-Returns prior desiredCompressionLevel.
-
-Valid arguments are 0 through 9, COMPRESSION_LEVEL_NONE,
-COMPRESSION_LEVEL_DEFAULT, COMPRESSION_LEVEL_BEST_COMPRESSION, and
-COMPRESSION_LEVEL_FASTEST.
-
-0 or COMPRESSION_LEVEL_NONE will change the desiredCompressionMethod
-to COMPRESSION_STORED. All other arguments will change the
-desiredCompressionMethod to COMPRESSION_DEFLATED.
-
-=cut
-
 sub desiredCompressionLevel    # Archive::Zip::Member
 {
 	my $self                       = shift;
@@ -1899,18 +1277,6 @@ sub desiredCompressionLevel    # Archive::Zip::Member
 	return $oldDesiredCompressionLevel;
 }
 
-#--------------------------------
-
-=item fileName()
-
-Get or set my internal filename.
-Returns the (possibly new) filename.
-
-Names will have backslashes converted to forward slashes,
-and will have multiple consecutive slashes converted to single ones.
-
-=cut
-
 sub fileName    # Archive::Zip::Member
 {
 	my $self    = shift;
@@ -1923,45 +1289,16 @@ sub fileName    # Archive::Zip::Member
 	return $self->{'fileName'};
 }
 
-#--------------------------------
-
-=item lastModFileDateTime()
-
-Return my last modification date/time stamp in MS-DOS format.
-
-=cut
-
 sub lastModFileDateTime    # Archive::Zip::Member
 {
 	shift->{'lastModFileDateTime'};
 }
-
-#--------------------------------
-
-=item lastModTime()
-
-Return my last modification date/time stamp,
-converted to unix localtime format.
-
-    print "Mod Time: " . scalar( localtime( $member->lastModTime() ) );
-
-=cut
 
 sub lastModTime    # Archive::Zip::Member
 {
 	my $self = shift;
 	return _dosToUnixTime( $self->lastModFileDateTime() );
 }
-
-#--------------------------------
-
-=item setLastModFileDateTimeFromUnix()
-
-Set my lastModFileDateTime from the given unix time.
-
-    $member->setLastModFileDateTimeFromUnix( time() );
-
-=cut
 
 sub setLastModFileDateTimeFromUnix    # Archive::Zip::Member
 {
@@ -1970,11 +1307,19 @@ sub setLastModFileDateTimeFromUnix    # Archive::Zip::Member
 	$self->{'lastModFileDateTime'} = _unixToDosTime($time_t);
 }
 
+# DOS date/time format
+# 0-4 (5) Second divided by 2
+# 5-10 (6) Minute (0-59)
+# 11-15 (5) Hour (0-23 on a 24-hour clock)
+# 16-20 (5) Day of the month (1-31)
+# 21-24 (4) Month (1 = January, 2 = February, etc.)
+# 25-31 (7) Year offset from 1980 (add 1980 to get actual year)
+
 # Convert DOS date/time format to unix time_t format
 # NOT AN OBJECT METHOD!
 sub _dosToUnixTime    # Archive::Zip::Member
 {
-	my $dt = shift;
+	my $dt = shift || return time();
 
 	my $year = ( ( $dt >> 25 ) & 0x7f ) + 80;
 	my $mon  = ( ( $dt >> 21 ) & 0x0f ) - 1;
@@ -1984,33 +1329,18 @@ sub _dosToUnixTime    # Archive::Zip::Member
 	my $min  = ( ( $dt >> 5 ) & 0x3f );
 	my $sec  = ( ( $dt << 1 ) & 0x3e );
 
-	my $time_t =
+	# catch errors
+	my $time_t = eval {
 	  Time::Local::timelocal( $sec, $min, $hour, $mday, $mon, $year );
+  	};
+	return time() if ($@);
 	return $time_t;
 }
-
-#--------------------------------
-
-=item internalFileAttributes()
-
-Return the internal file attributes field from the zip header.
-This is only set for members read from a zip file.
-
-=cut
 
 sub internalFileAttributes    # Archive::Zip::Member
 {
 	shift->{'internalFileAttributes'};
 }
-
-#--------------------------------
-
-=item externalFileAttributes()
-
-Return member attributes as read from the ZIP file.
-Note that these are NOT UNIX!
-
-=cut
 
 sub externalFileAttributes    # Archive::Zip::Member
 {
@@ -2037,20 +1367,6 @@ sub _mapPermissionsToUnix    # Archive::Zip::Member
 	# TODO: Handle non-Unix perms
 }
 
-#--------------------------------
-
-=item unixFileAttributes( [$newAttributes] )
-
-Get or set the member's file attributes using UNIX file attributes.
-Returns old attributes.
-
-    my $oldAttribs = $member->unixFileAttributes( 0666 );
-
-Note that the return value has more than just the file permissions,
-so you will have to mask off the lowest bits for comparisions.
-
-=cut
-
 sub unixFileAttributes    # Archive::Zip::Member
 {
 	my $self     = shift;
@@ -2073,18 +1389,6 @@ sub unixFileAttributes    # Archive::Zip::Member
 	return $oldPerms;
 }
 
-#--------------------------------
-
-=item localExtraField( [$newField] )
-
-Gets or sets the extra field that was read from the local header.
-This is not set for a member from a zip file until after the
-member has been written out.
-
-The extra field must be in the proper format.
-
-=cut
-
 sub localExtraField    # Archive::Zip::Member
 {
 	( $#_ > 0 ) 
@@ -2092,28 +1396,10 @@ sub localExtraField    # Archive::Zip::Member
 	  : $_[0]->{'localExtraField'};
 }
 
-#--------------------------------
-
-=item cdExtraField( [$newField] )
-
-Gets or sets the extra field that was read from the central directory header.
-
-The extra field must be in the proper format.
-
-=cut
-
 sub cdExtraField    # Archive::Zip::Member
 {
 	( $#_ > 0 ) ? ( $_[0]->{'cdExtraField'} = $_[1] ) : $_[0]->{'cdExtraField'};
 }
-
-#--------------------------------
-
-=item extraFields()
-
-Return both local and CD extra fields, concatenated.
-
-=cut
 
 sub extraFields    # Archive::Zip::Member
 {
@@ -2121,32 +1407,10 @@ sub extraFields    # Archive::Zip::Member
 	return $self->localExtraField() . $self->cdExtraField();
 }
 
-#--------------------------------
-
-=item fileComment( [$newComment] )
-
-Get or set the member's file comment.
-
-=cut
-
 sub fileComment    # Archive::Zip::Member
 {
 	( $#_ > 0 ) ? ( $_[0]->{'fileComment'} = $_[1] ) : $_[0]->{'fileComment'};
 }
-
-#--------------------------------
-
-=item hasDataDescriptor()
-
-Get or set the data descriptor flag.
-If this is set, the local header will not necessarily
-have the correct data sizes. Instead, a small structure
-will be stored at the end of the member data with these
-values.
-
-This should be transparent in normal operation.
-
-=cut
 
 sub hasDataDescriptor    # Archive::Zip::Member
 {
@@ -2166,91 +1430,30 @@ sub hasDataDescriptor    # Archive::Zip::Member
 	return $self->{'bitFlag'} & GPBF_HAS_DATA_DESCRIPTOR_MASK;
 }
 
-#--------------------------------
-
-=item crc32()
-
-Return the CRC-32 value for this member.
-This will not be set for members that were constructed from strings
-or external files until after the member has been written.
-
-=cut
-
 sub crc32    # Archive::Zip::Member
 {
 	shift->{'crc32'};
 }
-
-#--------------------------------
-
-=item crc32String()
-
-Return the CRC-32 value for this member as an 8 character printable
-hex string.  This will not be set for members that were constructed
-from strings or external files until after the member has been written.
-
-=cut
 
 sub crc32String    # Archive::Zip::Member
 {
 	sprintf( "%08x", shift->{'crc32'} );
 }
 
-#--------------------------------
-
-=item compressedSize()
-
-Return the compressed size for this member.
-This will not be set for members that were constructed from strings
-or external files until after the member has been written.
-
-=cut
-
 sub compressedSize    # Archive::Zip::Member
 {
 	shift->{'compressedSize'};
 }
-
-#--------------------------------
-
-=item uncompressedSize()
-
-Return the uncompressed size for this member.
-
-=cut
 
 sub uncompressedSize    # Archive::Zip::Member
 {
 	shift->{'uncompressedSize'};
 }
 
-#--------------------------------
-
-=item isEncrypted()
-
-Return true if this member is encrypted.
-The Archive::Zip module does not currently create or extract
-encrypted members.
-
-=cut
-
 sub isEncrypted    # Archive::Zip::Member
 {
 	shift->bitFlag() & GPBF_ENCRYPTED_MASK;
 }
-
-#--------------------------------
-
-=item isTextFile( [$flag] )
-
-Returns true if I am a text file.
-Also can set the status if given an argument (then returns old state).
-Note that this module does not currently do anything with this flag
-upon extraction or storage.
-That is, bytes are stored in native format whether or not they came
-from a text file.
-
-=cut
 
 sub isTextFile    # Archive::Zip::Member
 {
@@ -2266,19 +1469,6 @@ sub isTextFile    # Archive::Zip::Member
 	return $bit == IFA_TEXT_FILE;
 }
 
-#--------------------------------
-
-=item isBinaryFile()
-
-Returns true if I am a binary file.
-Also can set the status if given an argument (then returns old state).
-Note that this module does not currently do anything with this flag
-upon extraction or storage.
-That is, bytes are stored in native format whether or not they came
-from a text file.
-
-=cut
-
 sub isBinaryFile    # Archive::Zip::Member
 {
 	my $self = shift;
@@ -2293,42 +1483,28 @@ sub isBinaryFile    # Archive::Zip::Member
 	return $bit == IFA_BINARY_FILE;
 }
 
-#--------------------------------
-
-=item extractToFileNamed( $fileName )
-
-Extract me to a file with the given name.
-The file will be created with default modes.
-Directories will be created as needed.
-
-Returns AZ_OK on success.
-
-=cut
-
 sub extractToFileNamed    # Archive::Zip::Member
 {
 	my $self = shift;
-	my $name = shift;
+	my $name = shift;    # local FS name
 	return _error("encryption unsupported") if $self->isEncrypted();
 	mkpath( dirname($name) );    # croaks on error
 	my ( $status, $fh ) = _newFileHandle( $name, 'w' );
 	return _ioError("Can't open file $name for write") unless $status;
 	my $retval = $self->extractToFileHandle($fh);
 	$fh->close();
+	utime( $self->lastModTime(), $self->lastModTime(), $name );
 	return $retval;
 }
-
-#--------------------------------
-
-=item isDirectory()
-
-Returns true if I am a directory.
-
-=cut
 
 sub isDirectory    # Archive::Zip::Member
 {
 	return 0;
+}
+
+sub externalFileName    # Archive::Zip::Member
+{
+	return undef;
 }
 
 # The following are used when copying data
@@ -2342,23 +1518,10 @@ sub _readOffset    # Archive::Zip::Member
 	shift->{'readOffset'};
 }
 
-=item writeLocalHeaderRelativeOffset()
-
-Returns the file offset in bytes the last time I was written.
-
-=cut
-
 sub writeLocalHeaderRelativeOffset    # Archive::Zip::Member
 {
 	shift->{'writeLocalHeaderRelativeOffset'};
 }
-
-=item wasWritten()
-
-Returns true if I was successfully written. Reset at the beginning
-of a write attempt.
-
-=cut
 
 sub wasWritten { shift->{'wasWritten'} }
 
@@ -2566,52 +1729,6 @@ sub _refreshLocalFileHeader    # Archive::Zip::Member
 	return AZ_OK;
 }
 
-=back
-
-=head2 Low-level member data reading
-
-It is possible to use lower-level routines to access member
-data streams, rather than the extract* methods and contents().
-
-For instance, here is how to print the uncompressed contents
-of a member in chunks using these methods:
-
-    my ( $member, $status, $bufferRef );
-    $member = $zip->memberNamed( 'xyz.txt' );
-    $member->desiredCompressionMethod( COMPRESSION_STORED );
-    $status = $member->rewindData();
-    die "error $status" unless $status == AZ_OK;
-    while ( ! $member->readIsDone() )
-    {
-        ( $bufferRef, $status ) = $member->readChunk();
-        die "error $status"
-			if $status != AZ_OK && $status != AZ_STREAM_END;
-        # do something with $bufferRef:
-        print $$bufferRef;
-    }
-    $member->endRead();
-
-=over 4
-
-=cut
-
-#--------------------------------
-
-=item readChunk( [$chunkSize] )
-
-This reads the next chunk of given size from the member's data stream and
-compresses or uncompresses it as necessary, returning a reference to the bytes
-read and a status.
-If size argument is not given, defaults to global set by
-Archive::Zip::setChunkSize.
-Status is AZ_OK on success until the last chunk,
-where it returns AZ_STREAM_END. Returns C<( \$bytes, $status)>.
-
-    my ( $outRef, $status ) = $self->readChunk();
-    print $$outRef if $status != AZ_OK && $status != AZ_STREAM_END;
-
-=cut
-
 sub readChunk    # Archive::Zip::Member
 {
 	my ( $self, $chunkSize ) = @_;
@@ -2720,18 +1837,6 @@ sub _inflateChunk    # Archive::Zip::Member
 	}
 }
 
-#--------------------------------
-
-=item rewindData()
-
-Rewind data and set up for reading data streams or writing zip files.
-Can take options for C<inflateInit()> or C<deflateInit()>,
-but this isn't likely to be necessary.
-Subclass overrides should call this method.
-Returns C<AZ_OK> on success.
-
-=cut
-
 sub rewindData    # Archive::Zip::Member
 {
 	my $self = shift;
@@ -2755,6 +1860,7 @@ sub rewindData    # Archive::Zip::Member
 		( $self->{'deflater'}, $status ) = Compress::Zlib::deflateInit(
 			'-Level'      => $self->desiredCompressionLevel(),
 			'-WindowBits' => -MAX_WBITS(),                     # necessary magic
+#			'-Bufsize'    => $Archive::Zip::ChunkSize,
 			@_
 		);    # pass additional options
 		return _error( 'deflateInit error:', $status ) unless $status == Z_OK;
@@ -2764,7 +1870,8 @@ sub rewindData    # Archive::Zip::Member
 		and $self->desiredCompressionMethod() == COMPRESSION_STORED )
 	{
 		( $self->{'inflater'}, $status ) = Compress::Zlib::inflateInit(
-			'-WindowBits' => -MAX_WBITS(),    # necessary magic
+			'-WindowBits' => -MAX_WBITS(),               # necessary magic
+#			'-Bufsize'    => $Archive::Zip::ChunkSize,
 			@_
 		);    # pass additional options
 		return _error( 'inflateInit error:', $status ) unless $status == Z_OK;
@@ -2795,17 +1902,6 @@ sub rewindData    # Archive::Zip::Member
 	return AZ_OK;
 }
 
-#--------------------------------
-
-=item endRead()
-
-Reset the read variables and free the inflater or deflater.
-Must be called to close files, etc.
-
-Returns AZ_OK on success.
-
-=cut
-
 sub endRead    # Archive::Zip::Member
 {
 	my $self = shift;
@@ -2816,39 +1912,11 @@ sub endRead    # Archive::Zip::Member
 	return AZ_OK;
 }
 
-#--------------------------------
-
-=item readIsDone()
-
-Return true if the read has run out of data or errored out.
-
-=cut
-
 sub readIsDone    # Archive::Zip::Member
 {
 	my $self = shift;
 	return ( $self->_dataEnded() or !$self->_readDataRemaining() );
 }
-
-#--------------------------------
-
-=item contents()
-
-Return the entire uncompressed member data or undef in scalar context.
-When called in array context, returns C<( $string, $status )>; status
-will be AZ_OK on success:
-
-    my $string = $member->contents();
-    # or
-    my ( $string, $status ) = $member->contents();
-    die "error $status" unless $status == AZ_OK;
-
-Can also be used to set the contents of a member (this may change
-the class of the member):
-
-    $member->contents( "this is my new contents" );
-
-=cut
 
 sub contents    # Archive::Zip::Member
 {
@@ -2876,7 +1944,8 @@ sub contents    # Archive::Zip::Member
 			( $ref, $status ) = $self->readChunk( $self->_readDataRemaining() );
 
 			# did we get it in one chunk?
-			if ( length($$ref) == $self->uncompressedSize() ) {
+			if ( length($$ref) == $self->uncompressedSize() )
+			{
 				$retval = $$ref;
 			}
 			else { $retval .= $$ref }
@@ -2888,15 +1957,6 @@ sub contents    # Archive::Zip::Member
 		return wantarray ? ( $retval, $status ) : $retval;
 	}
 }
-
-#--------------------------------
-
-=item extractToFileHandle( $fh )
-
-Extract (and uncompress, if necessary) my contents to the given file handle.
-Return AZ_OK on success.
-
-=cut
 
 sub extractToFileHandle    # Archive::Zip::Member
 {
@@ -2984,7 +2044,7 @@ sub _writeData    # Archive::Zip::Member
 
 		last if $status == AZ_STREAM_END;
 	}
-	$self->{'compressedSize'} = $self->_writeOffset;
+	$self->{'compressedSize'} = $self->_writeOffset();
 	return AZ_OK;
 }
 
@@ -3007,15 +2067,27 @@ BEGIN { use Archive::Zip qw( :ERROR_CODES :UTILITY_METHODS ) }
 
 sub _newNamed    # Archive::Zip::DirectoryMember
 {
-	my $class = shift;
-	my $name  = shift;
-	my $self  = $class->new(@_);
-	$self->fileName($name);
-	if ( -d $name )
+	my $class    = shift;
+	my $fileName = shift;    # FS name
+	my $newName  = shift;    # Zip name
+	$newName = Archive::Zip::_asZipDirName($fileName) unless $newName;
+	my $self = $class->new(@_);
+	$self->{'externalFileName'} = $fileName;
+	$self->fileName($newName);
+	if ( -e $fileName )
 	{
-		my @stat = stat(_);
-		$self->unixFileAttributes( $stat[2] );
-		$self->setLastModFileDateTimeFromUnix( $stat[9] );
+
+		if ( -d _ )
+		{
+			my @stat = stat(_);
+			$self->unixFileAttributes( $stat[2] );
+			$self->setLastModFileDateTimeFromUnix( $stat[9] );
+		}
+		else    # hmm.. trying to add a non-directory?
+		{
+			_error( $fileName, ' exists but is not a directory' );
+			return undef;
+		}
 	}
 	else
 	{
@@ -3023,6 +2095,11 @@ sub _newNamed    # Archive::Zip::DirectoryMember
 		$self->setLastModFileDateTimeFromUnix( time() );
 	}
 	return $self;
+}
+
+sub externalFileName    # Archive::Zip::DirectoryMember
+{
+	shift->{'externalFileName'};
 }
 
 sub isDirectory    # Archive::Zip::DirectoryMember
@@ -3033,10 +2110,10 @@ sub isDirectory    # Archive::Zip::DirectoryMember
 sub extractToFileNamed    # Archive::Zip::DirectoryMember
 {
 	my $self    = shift;
-	my $name    = shift;
-	$name =~ s:/$::;
+	my $name    = shift;                                 # local FS name
 	my $attribs = $self->unixFileAttributes() & 07777;
-	mkpath( $name, 0, $attribs );    # croaks on error
+	mkpath( $name, 0, $attribs );                        # croaks on error
+	utime( $self->lastModTime(), $self->lastModTime(), $name );
 	return AZ_OK;
 }
 
@@ -3055,19 +2132,6 @@ sub contents
 	undef;
 }
 
-=back
-
-=head1 Archive::Zip::FileMember methods
-
-The Archive::Zip::FileMember class extends Archive::Zip::Member.
-It is the base class for both ZipFileMember and NewFileMember classes.
-This class adds an C<externalFileName> and an C<fh> member to keep
-track of the external file.
-
-=over 4
-
-=cut
-
 # ----------------------------------------------------------------------
 # class Archive::Zip::FileMember
 # Base class for classes that have file handles
@@ -3079,37 +2143,20 @@ use vars qw( @ISA );
 @ISA = qw ( Archive::Zip::Member );
 BEGIN { use Archive::Zip qw( :UTILITY_METHODS ) }
 
-#--------------------------------
-
-=item externalFileName()
-
-Return my external filename.
-
-=cut
-
 sub externalFileName    # Archive::Zip::FileMember
 {
 	shift->{'externalFileName'};
 }
-
-#--------------------------------
 
 # Return true if I depend on the named file
 sub _usesFileNamed
 {
 	my $self     = shift;
 	my $fileName = shift;
-	my $xfn      = $self->externalFileName;
+	my $xfn      = $self->externalFileName();
 	return undef if ref($xfn);
 	return $xfn eq $fileName;
 }
-
-=item fh()
-
-Return my read file handle.
-Automatically opens file if necessary.
-
-=cut
 
 sub fh    # Archive::Zip::FileMember
 {
@@ -3173,8 +2220,8 @@ BEGIN { use Archive::Zip qw( :CONSTANTS :ERROR_CODES :UTILITY_METHODS ) }
 sub _newFromFileNamed    # Archive::Zip::NewFileMember
 {
 	my $class    = shift;
-	my $fileName = shift;
-	my $newName  = shift || $fileName;
+	my $fileName = shift;	# local FS format
+	my $newName  = shift || Archive::Zip::_asZipDirName($fileName);
 	return undef unless ( stat($fileName) && -r _ && !-d _ );
 	my $self = $class->new(@_);
 	$self->fileName($newName);
@@ -3221,8 +2268,9 @@ sub _readRawChunk    # Archive::Zip::NewFileMember
 sub extractToFileNamed    # Archive::Zip::NewFileMember
 {
 	my $self = shift;
-	my $name = shift;
-	if ( $name eq $self->fileName() and -r $name )
+	my $name = shift;    # local FS name
+	if ( File::Spec->rel2abs($name) eq
+		File::Spec->rel2abs( $self->externalFileName() ) and -r $name )
 	{
 		return AZ_OK;
 	}
@@ -3231,17 +2279,6 @@ sub extractToFileNamed    # Archive::Zip::NewFileMember
 		return $self->SUPER::extractToFileNamed( $name, @_ );
 	}
 }
-
-=back
-
-=head1 Archive::Zip::ZipFileMember methods
-
-The Archive::Zip::ZipFileMember class represents members that have
-been read from external zip files.
-
-=over 4
-
-=cut
 
 # ----------------------------------------------------------------------
 # class Archive::Zip::ZipFileMember
@@ -3321,41 +2358,15 @@ sub _become    # Archive::Zip::ZipFileMember
 	return $self->SUPER::_become($newClass);
 }
 
-#--------------------------------
-
-=item diskNumberStart()
-
-Returns the disk number that my local header resides
-in. Had better be 0.
-
-=cut
-
 sub diskNumberStart    # Archive::Zip::ZipFileMember
 {
 	shift->{'diskNumberStart'};
 }
 
-#--------------------------------
-
-=item localHeaderRelativeOffset()
-
-Returns the offset into the zip file where my local header is.
-
-=cut
-
 sub localHeaderRelativeOffset    # Archive::Zip::ZipFileMember
 {
 	shift->{'localHeaderRelativeOffset'};
 }
-
-#--------------------------------
-
-=item dataOffset()
-
-Returns the offset from the beginning of the zip file to
-my data.
-
-=cut
 
 sub dataOffset    # Archive::Zip::ZipFileMember
 {
@@ -3552,7 +2563,7 @@ sub rewindData    # Archive::Zip::ZipFileMember
 	my $status = $self->SUPER::rewindData(@_);
 	return $status unless $status == AZ_OK;
 
-	return AZ_IO_ERROR unless $self->fh;
+	return AZ_IO_ERROR unless $self->fh();
 
 	$self->fh()->clearerr();
 
@@ -3654,27 +2665,4 @@ sub _readRawChunk    # Archive::Zip::StringMember
 __END__
 
 
-=back
-
-=head1 AUTHOR
-
-Ned Konz, nedkonz@cpan.org
-
-=head1 COPYRIGHT
-
-Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
-software; you can redistribute it and/or modify it under the same terms
-as Perl itself.
-
-=head1 SEE ALSO
-
-L<Compress::Zlib>
-L<Archive::Tar>
-
-There is a Japanese translation of this document at
-http://www.necoware.com/~deq/perl/doc-ja/Archive-Zip.html
-that was done by DEQ <deq@oct.zaq.ne.jp> . Thanks!
-
-=cut
-
-# vim: ts=4 sw=4 columns=80
+# vim: ts=4 sw=4 tw=80 wrap

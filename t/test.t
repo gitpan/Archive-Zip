@@ -1,4 +1,4 @@
-# $Revision: 1.12 $
+# $Revision: 1.14 $
 # Before `make install' is performed this script should be runnable
 # with `make test'. After `make install' it should work as
 # `perl t/test.t'
@@ -10,6 +10,7 @@ use Test;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use FileHandle;
 use File::Path;
+use File::Spec;
 
 BEGIN { plan tests => 123, todo => [] }
 
@@ -45,9 +46,8 @@ skip($testZipDoesntWork, $status != 0);
 # unzip -t returns error code=1 for warning on empty
 
 #--------- add a directory
-$memberName = TESTDIR;
+$memberName = TESTDIR . '/';
 my $dirName = TESTDIR;
-$dirName =~ s:/$::;
 
 # addDirectory	# Archive::Zip::Archive
 # new	# Archive::Zip::Member
@@ -86,7 +86,7 @@ ok($status, AZ_OK);
 ok(-d $dirName);
 
 #--------- add a string member, uncompressed
-$memberName = TESTDIR . 'string.txt';
+$memberName = TESTDIR . '/string.txt';
 # addString	# Archive::Zip::Archive
 # newFromString	# Archive::Zip::Member
 $member = $zip->addString(TESTSTRING, $memberName);
@@ -143,8 +143,8 @@ ok(-f $memberName);
 ok(fileCRC($memberName), TESTSTRINGCRC);
 
 #--------- add a file member, compressed
-ok(rename($memberName, TESTDIR . 'file.txt'));
-$memberName = TESTDIR . 'file.txt';
+ok(rename($memberName, TESTDIR . '/file.txt'));
+$memberName = TESTDIR . '/file.txt';
 
 # addFile	# Archive::Zip::Archive
 # newFromFile	# Archive::Zip::Member
@@ -281,13 +281,13 @@ ok($status, AZ_OK);
 skip($testZipDoesntWork, $status, 0);
 
 #--------- add compressed file
-$member = $zip->addFile(TESTDIR . 'file.txt');
+$member = $zip->addFile(File::Spec->catfile(TESTDIR, 'file.txt'));
 ok(defined($member));
 $member->desiredCompressionMethod(COMPRESSION_DEFLATED);
-$member->fileName(TESTDIR . 'fileC.txt');
+$member->fileName(TESTDIR . '/fileC.txt');
 
 #--------- add uncompressed string
-$member = $zip->addString(TESTSTRING, TESTDIR . 'stringU.txt');
+$member = $zip->addString(TESTSTRING, TESTDIR . '/stringU.txt');
 ok(defined($member));
 $member->desiredCompressionMethod(COMPRESSION_STORED);
 
@@ -339,7 +339,7 @@ ok($zip->numberOfMembers(), 10);
 #--------- clean up duplicate names
 @members = $zip->members();
 $member = $zip->removeMember($members[5]);
-ok($member->fileName(), TESTDIR);
+ok($member->fileName(), TESTDIR . '/');
 
 {
 	for my $i (6..9)

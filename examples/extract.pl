@@ -4,6 +4,8 @@
 #	perl extract.pl [-j] zipfile.zip filename [...]
 # if -j option given, discards paths.
 #
+# $Revision: 1.5 $
+#
 use strict;
 
 my $dirName = 'extractTest';

@@ -13,12 +13,11 @@
 #     -q              query only (list files but don't zip)
 #     <zippath>.zip   path to zipfile to be created (or updated if it exists)
 #
-# $Revision: 1.1 $
+# $Revision: 1.2 $
 
 use strict;
 
 use Archive::Zip qw(:ERROR_CODES :CONSTANTS);
-use Archive::Zip::Tree;
 use Cwd; 
 use File::Basename;
 use File::Copy;

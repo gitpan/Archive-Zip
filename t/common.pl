@@ -1,6 +1,7 @@
 # Shared defs for test programs
 
-use constant TESTDIR => 'testDir/';
+# Paths. Must make case-insensitive.
+use constant TESTDIR => 'testdir';
 use constant INPUTZIP => 'testin.zip';
 use constant OUTPUTZIP => 'testout.zip';
 
@@ -37,7 +38,7 @@ sub fileCRC
 {
 	my $fileName = shift;
 	local $/ = undef;
-	my $fh = FileHandle->new($fileName, "r");
+	my $fh = IO::File->new($fileName, "r");
 	binmode($fh);
 	return 0 if not defined($fh);
 	my $contents = <$fh>;
@@ -48,7 +49,7 @@ sub fileCRC
 
 sub testCat
 {
-	my $fh = FileHandle->new( CATPIPE . OUTPUTZIP );
+	my $fh = IO::File->new( CATPIPE . OUTPUTZIP );
 	binmode($fh);
 	my $testString = pack('C256', 0..255);
 	my $testCrc = Archive::Zip::computeCRC32($testString);

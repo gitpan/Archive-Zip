@@ -1,5 +1,26 @@
 Revision history for Perl extension Archive::Zip.
 
+1.02 Fri Aug 23 17:07:22 PDT 2002
+  - Many changes for cross-platform use (use File::Spec everywhere)
+  - Separated POD from Perl
+  - Moved Archive::Zip::Tree contents into Archive::Zip
+    A::Z::Tree is now deprecated and will warn with -w
+  - Reorganized docs
+  - Added FAQ
+  - Added chunkSize() call to report current chunk size
+    and added C::Z BufSize patch from Yeasah Pell.
+  - Added fileName() to report last read zip file name
+  - Added capability to prepend data, like for SFX files
+  - Added examples/selfex.pl for self-extracting archives creation
+  - Added examples/zipcheck.pl for validity testing
+  - Made extractToFileNamed() set access/modification times
+  - Added t/testTree.t to test A::Z::Tree
+  - Fix/speed up memberNamed()
+  - Added Archive::Zip::MemberRead by Sreeji K. Das
+  - Added tempFile(), tempName()
+  - Added overwrite() and overwriteAs() to allow read/modify/write of zip
+  - added examples/updateZip.pl to show how to read/modify/write
+
 1.01 Tue Apr 30 10:34:44 PDT 2002
   - Changed mkpath call for directories to work with BSD/OS
   - Changed tests to work with BSD/OS

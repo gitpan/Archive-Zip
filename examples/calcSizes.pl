@@ -1,7 +1,10 @@
+# Example of how to compute compressed sizes
+# $Revision: 1.2 $
 use strict;
 use Archive::Zip qw(:ERROR_CODES);
+use File::Spec;
 my $zip = Archive::Zip->new();
-my $blackHoleDevice = "/dev/null";	# "NUL" under Windoze
+my $blackHoleDevice = File::Spec->devnull();
 
 $zip->addFile($_) foreach (<*.pl>);
 

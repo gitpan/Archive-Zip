@@ -1,11 +1,13 @@
 #!/usr/bin/perl -w
+# Demonstrates reading a zip from an IO::Scalar
+# $Revision: 1.3 $
 use strict;
 use Archive::Zip qw(:CONSTANTS :ERROR_CODES);
 use IO::Scalar;
 use IO::File;
 
 # test reading from a scalar
-my $file = IO::File->new('test.zip', 'r');
+my $file = IO::File->new('testin.zip', 'r');
 my $zipContents;
 $file->read($zipContents, 20000);
 $file->close();
