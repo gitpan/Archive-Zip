@@ -1,5 +1,5 @@
 #!/bin/perl -w
-# $Revision: 1.6 $
+# $Revision: 1.7 $
 # Lists the zipfile given as a first argument and tests CRC's.
 # Usage:
 #	perl ziptest.pl zipfile.zip
@@ -45,6 +45,7 @@ my @errors;
 
 foreach my $member ($zip->members())
 {
+	my $compressedSize = $member->compressedSize();
 	$fh->resetCRC();
 	$member->desiredCompressionMethod(COMPRESSION_STORED);
 	$status = $member->extractToFileHandle($fh);
@@ -56,7 +57,7 @@ foreach my $member ($zip->members())
 
 	printf("%8d %8d  %s  %08x %s\n",
 		$member->uncompressedSize(),
-		$member->compressedSize(),
+		$compressedSize,
 		$ct,
 		$member->crc32(),
 		$member->fileName()

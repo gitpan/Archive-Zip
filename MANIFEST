@@ -5,6 +5,7 @@ Makefile.PL                 Perl program to construct the Makefile
 README                      Overview
 TODO                        Stuff left to do
 docs/Appnote.txt            PKZip format description
+docs/appnote.iz             Zip format description (from Info-Zip, annotated)
 docs/Archive-Zip.pdf        Object model, PDF version
 docs/Archive-Zip.ps         Object model, Postscript version
 docs/ideas.txt              Misc ideas for extra field extension

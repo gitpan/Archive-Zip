@@ -1,17 +1,18 @@
 File:    APPNOTE.TXT - .ZIP File Format Specification
-Version: 4.5
-Revised: 11/01/2001
-Copyright (c) 1989 - 2001 PKWARE Inc., All Rights Reserved.
+Version: 5.2 - NOTIFICATION OF CHANGE
+Revised: 07/16/2003
+Copyright (c) 1989 - 2003 PKWARE Inc., All Rights Reserved.
+
 
 Disclaimer
 ----------
 
 Although PKWARE will attempt to supply current and accurate
 information relating to its file formats, algorithms, and the
-subject programs, the possibility of error can not be eliminated.
-PKWARE therefore expressly disclaims any warranty that the
-information contained in the associated materials relating to the
-subject programs and/or the format of the files created or
+subject programs, the possibility of error or omission can not 
+be eliminated. PKWARE therefore expressly disclaims any warranty 
+that the information contained in the associated materials relating 
+to the subject programs and/or the format of the files created or
 accessed by the subject programs and/or the algorithms used by
 the subject programs, or any other matter, is current, correct or
 accurate as delivered.  Any risk of damage due to any possible
@@ -20,6 +21,14 @@ Furthermore, the information relating to the subject programs
 and/or the file formats created or accessed by the subject
 programs and/or the algorithms used by the subject programs is
 subject to change without notice.
+
+If the version of this file is marked as a NOTIFICATION OF CHANGE,
+the content defines an Early Feature Specification (EFS) change 
+to the .ZIP file format that may be subject to modification prior 
+to publication of the Final Feature Specification (FFS).  This
+document may also contain information on Planned Feature 
+Specifications (PFS) defining recognized future extensions.
+
 
 General Format of a .ZIP file
 -----------------------------
@@ -190,11 +199,11 @@ General Format of a .ZIP file
           5 - Atari ST                  6 - OS/2 H.P.F.S.
           7 - Macintosh                 8 - Z-System
           9 - CP/M                     10 - Windows NTFS
-         11 - MVS                      12 - VSE
+         11 - MVS (OS/390 - Z/OS)      12 - VSE
          13 - Acorn Risc               14 - VFAT
          15 - alternate MVS            16 - BeOS
-         17 - Tandem
-         18 thru 255 - unused
+         17 - Tandem                   18 - OS/400
+         19 thru 255 - unused
 
           The lower byte indicates the version number of the
           software used to encode the file.  The value/10
@@ -248,7 +257,11 @@ General Format of a .ZIP file
                  compressed patched data.  (Note: Requires PKZIP 
                  version 2.70 or greater)
 
-          Bit 6: Currently unused.
+          Bit 6: Strong encryption.  If this bit is set, you should
+                 set the version needed to extract value to at least
+                 50 and you must also set bit 0.  If AES encryption
+                 is used, the version needed to extract value must 
+                 be at least 51.
 
           Bit 7: Currently unused.
 
@@ -283,7 +296,9 @@ General Format of a .ZIP file
           7 - Reserved for Tokenizing compression algorithm
           8 - The file is Deflated
           9 - Enhanced Deflating using Deflate64(tm)
-         10 - PKWARE Date Compression Library Imploding
+         10 - PKWARE Data Compression Library Imploding
+         11 - Reserved by PKWARE
+         12 - File is compressed using BZIP2 algorithm
 
       date and time fields: (2 bytes each)
 
@@ -405,6 +420,7 @@ General Format of a .ZIP file
 
           0x0001        ZIP64 extended information extra field
           0x0007        AV Info
+          0x0008        Reserved for future Unicode file name data (PFS)
           0x0009        OS/2
           0x000a        NTFS 
           0x000c        OpenVMS
@@ -414,14 +430,20 @@ General Format of a .ZIP file
           0x0015        X.509 Certificate ID and Signature for 
                         individual file
           0x0016        X.509 Certificate ID for Central Directory
+          0x0017        Strong Encryption Header
+          0x0018        Record Management Controls
+          0x0065        IBM S/390 (Z390), AS/400 (I400) attributes 
+                        - uncompressed
+          0x0066        IBM S/390 (Z390), AS/400 (I400) attributes 
+                        - compressed
 
           Third party mappings commonly used are:
 
-          0x0065        IBM S/390 attributes - uncompressed
-          0x0066        IBM S/390 attributes - compressed
-          0x07c8        Macintosh
+
           0x2605        ZipIt Macintosh
-          0x2705        ZIpIt Macintosh 1.3.5+
+          0x2705        ZipIt Macintosh 1.3.5+
+          0x07c8        Macintosh
+          0x2805        ZipIt Macintosh 1.3.5+
           0x334d        Info-ZIP Macintosh
           0x4341        Acorn/SparkFS 
           0x4453        Windows NT security descriptor (binary ACL)
@@ -433,12 +455,18 @@ General Format of a .ZIP file
           0x4f4c        Xceed original location extra field
           0x5356        AOS/VS (ACL)
           0x5455        extended timestamp
-          0x5855        Info-ZIP Unix (original, also OS/2, NT, etc)
           0x554e        Xceed unicode extra field
+          0x5855        Info-ZIP Unix (original, also OS/2, NT, etc)
           0x6542        BeOS/BeBox
           0x756e        ASi Unix
           0x7855        Info-ZIP Unix (new)
           0xfd4a        SMS/QDOS
+
+          Detailed descriptions of Extra Fields defined by third 
+          party mappings will be documented as information on
+          these data structures is made available to PKWARE.  
+          PKWARE does not guarantee the accuracy of any published
+          third party data.
 
           The Data Size field indicates the size of the following
           data block. Programs can use this value to skip to the
@@ -632,62 +660,162 @@ General Format of a .ZIP file
           ignore       2
           fail         3
 
-         -PKCS#7 Store for X.509 Certificates
+          Patch support is provided by PKPatchMaker(tm) technology and is 
+          covered under U.S. Patents and Patents Pending.
+
+         -PKCS#7 Store for X.509 Certificates:
 
           Note: all fields stored in Intel low-byte/high-byte order.
 
           Value     Size     Description
           -----     ----     -----------
   (Store) 0x0014    2 bytes  Tag for this "extra" block type
-          SSize     2 bytes  Size of the store data
-          SData   (variable) Data about the store
+          TSize     2 bytes  Size of the store data
+          (var)     TSize    Data about the store
 
-          SData
-          Value     Size     Description
-          -----     ----     -----------
-          Version   2 bytes  Version number
-          StoreD  (variable) Actual store data
 
-           -X.509 Certificate ID and Signature for individual file
+         -X.509 Certificate ID and Signature for individual file:
 
           Note: all fields stored in Intel low-byte/high-byte order.
 
           Value     Size     Description
           -----     ----     -----------
   (CID)   0x0015    2 bytes  Tag for this "extra" block type
-          CSize     2 bytes  Size of Method
-          Method  (variable)
+          TSize     2 bytes  Size of data that follows
+          (var)     TSize    Data
 
-          Method
-          Value     Size     Description
-          -----     ----     -----------
-          Version   2 bytes  Version number
-          AlgID     2 bytes  Algorithm ID used for signing
-          IDSize    2 bytes  Size of Certificate ID data
-          CertID  (variable) Certificate ID data
-          SigSize   2 bytes  Size of Signature data
-          Sig     (variable) Signature data
-
-          CertID
-          Value     Size     Description
-          -----     ----     -----------
-          Size1     4 bytes  Size of CertID
-          Size1     4 bytes  A bug in version one causes this value
-                             to appear twice.
-          IssSize   4 bytes  Issuer data size
-          Issuer  (variable) Issuer data
-          SerSize   4 bytes  Serial Number size
-          Serial  (variable) Serial Number data
-
-           -X.509 Certificate ID and Signature for central directory
+         -X.509 Certificate ID and Signature for central directory:
 
           Note: all fields stored in Intel low-byte/high-byte order.
 
           Value     Size     Description
           -----     ----     -----------
   (CDID)  0x0016    2 bytes  Tag for this "extra" block type
-          CSize     2 bytes  Size of Method
-          Method  (variable)
+          TSize     2 bytes  Size of data that follows
+          (var)     TSize    Data
+
+         -Strong Encryption Header (EFS):
+
+          Value     Size     Description
+          -----     ----     -----------
+          0x0017    2 bytes  Tag for this "extra" block type
+          TSize     2 bytes  Size of data that follows
+          Format    2 bytes  Format definition for this record
+          AlgID     2 bytes  Encryption algorithm identifier
+          Bitlen    2 bytes  Bit length of encryption key
+          Flags     2 bytes  Processing flags
+          (var)     TSize    Reserved for future certificate data
+
+
+         -Record Management Controls:
+
+          Value     Size     Description
+          -----     ----     -----------
+(Rec-CTL) 0x0018    2 bytes  Tag for this "extra" block type
+          CSize     2 bytes  Size of total extra block data
+          Tag1      2 bytes  Record control attribute 1
+          Size1     2 bytes  Size of attribute 1, in bytes
+          Data      Size1    Attribute 1 data
+            .
+            .
+            .
+          TagN      2 bytes  Record control attribute N
+          SizeN     2 bytes  Size of attribute N, in bytes
+          Data      SizeN    Attribute N data
+
+         -MVS Extra Field:
+
+          The following is the layout of the MVS "extra" block.
+          Note: Some fields are stored in Big Endian format.
+          All text is in EBCDIC format unless otherwise specified.
+
+          Value       Size          Description
+          -----       ----          -----------
+  (MVS)   0x0065      2 bytes       Tag for this "extra" block type
+          TSize       2 bytes       Size for the following data block
+          ID          4 bytes       EBCDIC "Z390" 0xE9F3F9F0 or
+                                    "T4MV" for TargetFour
+          (var)       TSize-4       Attribute data
+
+
+         -OS/400 Extra Field:
+
+          The following is the layout of the OS/400 "extra" block.
+          Note: Some fields are stored in Big Endian format.
+          All text is in EBCDIC format unless otherwise specified.
+
+          Value       Size          Description
+          -----       ----          -----------
+  (OS400) 0x0065      2 bytes       Tag for this "extra" block type
+          TSize       2 bytes       Size for the following data block
+          ID          4 bytes       EBCDIC "I400" 0xC9F4F0F0 or
+                                    "T4MV" for TargetFour
+          (var)       TSize-4       Attribute data
+
+
+         -ZipIt Macintosh Extra Field (long):
+
+          The following is the layout of the ZipIt extra block 
+          for Macintosh. The local-header and central-header versions 
+          are identical. This block must be present if the file is 
+          stored MacBinary-encoded and it should not be used if the file 
+          is not stored MacBinary-encoded.
+
+          Value         Size        Description
+          -----         ----        -----------
+  (Mac2)  0x2605        Short       tag for this extra block type
+          TSize         Short       total data size for this block
+          "ZPIT"        beLong      extra-field signature
+          FnLen         Byte        length of FileName
+          FileName      variable    full Macintosh filename
+          FileType      Byte[4]     four-byte Mac file type string
+          Creator       Byte[4]     four-byte Mac creator string
+
+
+         -ZipIt Macintosh Extra Field (short, for files):
+
+          The following is the layout of a shortened variant of the
+          ZipIt extra block for Macintosh (without "full name" entry).
+          This variant is used by ZipIt 1.3.5 and newer for entries of
+          files (not directories) that do not have a MacBinary encoded
+          file. The local-header and central-header versions are identical.
+
+          Value         Size        Description
+          -----         ----        -----------
+  (Mac2b) 0x2705        Short       tag for this extra block type
+          TSize         Short       total data size for this block (12)
+          "ZPIT"        beLong      extra-field signature
+          FileType      Byte[4]     four-byte Mac file type string
+          Creator       Byte[4]     four-byte Mac creator string
+          fdFlags       beShort     attributes from FInfo.frFlags,
+                                    may be omitted
+          0x0000        beShort     reserved, may be omitted
+
+
+         -ZipIt Macintosh Extra Field (short, for directories):
+
+          The following is the layout of a shortened variant of the
+          ZipIt extra block for Macintosh used only for directory
+          entries. This variant is used by ZipIt 1.3.5 and newer to 
+          save some optional Mac-specific information about directories.
+          The local-header and central-header versions are identical.
+
+          Value         Size        Description
+          -----         ----        -----------
+  (Mac2c) 0x2805        Short       tag for this extra block type
+          TSize         Short       total data size for this block (12)
+          "ZPIT"        beLong      extra-field signature
+          frFlags       beShort     attributes from DInfo.frFlags, may
+                                    be omitted
+          View          beShort     ZipIt view flag, may be omitted
+
+
+          The View field specifies ZipIt-internal settings as follows:
+
+          Bits of the Flags:
+              bit 0           if set, the folder is shown expanded (open)
+                              when the archive contents are viewed in ZipIt.
+              bits 1-15       reserved, zero;
 
 
          -ZIP64 Extended Information Extra Field:
@@ -721,7 +849,7 @@ General Format of a .ZIP file
           This entry in the Local header must include BOTH original
           and compressed file sizes.
 
-         - FWKCS MD5 Extra Field:
+         -FWKCS MD5 Extra Field:
 
           The FWKCS Contents_Signature System, used in
           automatically identifying files independent of file name,
@@ -1170,7 +1298,7 @@ Tokenizing - Method 7
 This method is not used by PKZIP.
 
 Deflating - Method 8
------------------
+--------------------
 
 The Deflate algorithm is similar to the Implode algorithm using
 a sliding dictionary of up to 32K with secondary compression
@@ -1307,6 +1435,30 @@ if data descriptor exists
    read crc and sizes
 endif
 
+Enhanced Deflating - Method 9
+-----------------------------
+
+The Enhanced Deflating algorithm is similar to Deflate but
+uses a sliding dictionary of up to 64K. Deflate64(tm) is supported
+by the Deflate extractor. 
+
+BZIP2 - Method 12
+-----------------------------
+
+BZIP2 is an open-source data compression algorithm developed by 
+Julian Seward.  Information and source code for this algorithm
+can be found on the internet.
+
+Traditional PKWARE Encryption
+-----------------------------
+
+The following information discusses the decryption steps
+required to support traditional PKWARE encryption.  This
+form of encryption is considered weak by todays standards
+and its use is recommended only for situations with
+low security needs or for compatiblity with older .ZIP 
+applications.
+
 Decryption
 ----------
 
@@ -1400,6 +1552,220 @@ loop until done
     update_keys(temp)
     output Temp
 end loop
+
+
+Strong Encryption (EFS)
+-----------------------
+
+Version 5.x of this specification includes support for strong 
+encryption algorithms.  These algorithms can be used with either 
+a password or an X.509v3 digital certificate to encrypt each file. 
+This format specification supports either password or certificate 
+based encryption to meet the security needs of today, to enable 
+interoperability between users within both PKI and non-PKI 
+environments, and to ensure interoperability between different 
+computing platforms that are running a ZIP program.  
+
+Password based encryption is the most common form of encryption 
+people are familiar with.  However, inherent weaknesses with 
+passwords (e.g. susceptibility to dictionary/brute force attack) 
+as well as password management and support issues make certificate 
+based encryption a more secure and scalable option.  Industry 
+efforts and support are defining and moving towards more advanced 
+security solutions built around X.509v3 digital certificates and 
+Public Key Infrastructures(PKI) because of the greater scalability, 
+administrative options, and more robust security over traditional 
+password-based encryption. 
+
+Most standard encryption algorithms are supported with this
+specification. Reference implementations for many of these 
+algorithms are available from either commercial or open source 
+distributors.  Readily available cryptographic toolkits make
+implementation of the encryption features straight-forward.
+
+The algorithms introduced in Version 5.0 of this specificaion 
+include:
+
+    RC2 40 bit, 64 bit, and 128 bit
+    RC4 40 bit, 64 bit, and 128 bit
+    DES
+    3DES 112 bit and 168 bit
+  
+Version 5.1 adds support for the following:
+
+    AES 128 bit, 192 bit, and 256 bit
+
+The details of the strong encryption specification for
+certificates remain under development as design and testing 
+issues are worked out for the range of algorithms, encryption 
+methods, certificate processing and cross-platform support 
+necessary to meet the advanced security needs of .ZIP file 
+users today and in the future. 
+
+This feature specification is intended to support basic 
+encryption needs of today, such as password support.  However
+this specification is also designed to lay the foundation for 
+future advanced security needs.
+
+Password-based encryption using strong encryption algorithms
+operates similarly to the traditional PKWARE encryption defined 
+in this format.  Additional data structures are added to 
+support the processing needs of the strong algorithms.
+
+The Strong Encryption data structures are:
+
+1. Bits 0 and 6 of the General Purpose bit flag in both local
+and central header records.  Both bits set indicates strong 
+encryption.
+
+
+2. Extra Field 0x0017 in central header only.
+
+     Fields to consider in this record are:
+
+     Format - the data format identifier for this record.  The only
+     value allowed at this time is the integer value 2.
+
+     AlgId - integer identifier of the encryption algorithm from the
+     following range
+
+         0x6601 - DES
+         0x6602 - RC2 (version needed to extract < 5.2)
+         0x6603 - 3DES 168
+         0x6609 - 3DES 112
+         0x660E - AES 128 
+         0x660F - AES 192 
+         0x6610 - AES 256 
+         0x6702 - RC2 (version needed to extract >= 5.2)
+         0x6801 - RC4
+         0xFFFF - Unknown algorithm
+
+     Bitlen - Explicit bit length of key
+
+          40
+          64
+         112
+         128
+         192
+         256
+   
+     Flags - Processing flags needed for decryption
+
+         0x0001 - Password is required to decrypt
+         0x0002 - reserved for certificates only
+         0x0003 - Password or certificate required to decrypt
+
+         Values > 0x0003 reserved for certificate processing
+
+
+3. Decryption header record preceeding compressed file data.
+
+         -Decryption Header:
+
+          Value     Size     Description
+          -----     ----     -----------
+          IVSize    2 bytes  Size of initialization vector (IV)
+          IVData    IVSize   Initialization vector for this file
+          Size      4 bytes  Size of remaining decryption header data
+          Format    2 bytes  Format definition for this record
+          AlgID     2 bytes  Encryption algorithm identifier
+          Bitlen    2 bytes  Bit length of encryption key
+          Flags     2 bytes  Processing flags
+          ErdSize   2 bytes  Size of Encrypted Random Data
+          ErdData   ErdSize  Encrypted Random Data
+          Reserved1 4 bytes  Reserved certificate data
+          Reserved2 (var)    Reserved for certificate data
+          VSize     2 bytes  Size of password validation data
+          VData     VSize-4  Password validation data
+          VCRC32    4 bytes  CRC32 of password validation data
+
+     IVData - The size of the IV should match the algorithm block size.
+              The IVData can be completely random data.  If the size of
+              the randomly generated data does not match the block size
+              it should be complemented with zero's.  If IVSize is 0, 
+              then IV = CRC32 + 64-bit File Size.
+
+     Format - the data format identifier for this record.  The only
+     value allowed at this time is the integer value 3.
+
+     AlgId - integer identifier of the encryption algorithm from the
+     following range
+
+         0x6601 - DES
+         0x6602 - RC2 (version needed to extract < 5.2)
+         0x6603 - 3DES 168
+         0x6609 - 3DES 112
+         0x660E - AES 128 
+         0x660F - AES 192 
+         0x6610 - AES 256 
+         0x6702 - RC2 (version needed to extract >= 5.2)
+         0x6801 - RC4
+         0xFFFF - Unknown algorithm
+
+     Bitlen - Explicit bit length of key
+
+          40
+          64
+         112
+         128
+         192
+         256
+   
+     Flags - Processing flags needed for decryption
+
+         0x0001 - Password is required to decrypt
+         0x0002 - reserved for certificates only
+         0x0003 - Password or certificate required to decrypt
+
+         Values > 0x0003 reserved for certificate processing
+
+     ErdData - Encrypted random data is used to generate a file
+               session key for encrypting each file.  SHA1 is 
+               used to calculate hash data used to derive keys.
+               File session keys are deived from a master session
+               key generated from the user-supplied password.
+
+     Reserved1 - Reserved for certificate processing, if value is
+               zero, then Reserved2 data is absent.
+
+     VSize - This size value will always include the 4 bytes of the
+             VCRC32 data and will be greater than 4 bytes.
+
+     VData - Random data for password validation.  This data is VSize
+             in length and VSize must be a multiple of the encryption
+             block size.  VCRC32 is a checksum value of VData.  VSize,
+             VData, and VCRC32 are stored encrypted and start the
+             stream of encrypted data for a file.
+
+Strong Encryption is always applied to a file after compression. The
+block oriented algorithms all operate in Cypher Block Chaining (CBC) 
+mode.  The block size used for AES encryption is 16.  All other block
+algorithms use a block size of 8.  Two ID's are defined for RC2 to 
+account for a discrepancy found in the implementation of the RC2
+algorithm in the cryptographic library on Windows XP SP1 and all 
+earlier versions of Windows.
+
+A pseudo-code representation of the encryption process is as follows:
+
+Password = GetUserPassword()
+RD  = Random()
+ERD = Encrypt(RD,DeriveKey(SHA1(Password)))
+For Each File
+    IV = Random()
+    VData = Random()
+    FileSessionKey = DeriveKey(SHA1(RD, IV))
+    Encrypt(VData + FileData,FileSessionKey)
+Done
+
+The function names and parameter requirements will depend on
+the choice of the cryptographic toolkit selected.  Almost any
+toolkit supporting the reference implementations for each
+algorithm can be used.  The RSA BSAFE(r), OpenSSL, and Microsoft's
+CryptoAPI libraries are all known to work well.  
+
+The features set forth in the Strong Encryption (EFS) specification are
+covered by a pending patent application.
+
 
 Change Process
 --------------

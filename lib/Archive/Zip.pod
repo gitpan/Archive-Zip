@@ -664,12 +664,12 @@ The optional second argument sets the name of the archive
 member (which defaults to C<$name>). If given, it must be in
 Zip (Unix) format.
 
-=item addString( $stringOrStringRef [, $name] )
+=item addString( $stringOrStringRef, $name )
 
 
 
 Append a member created from the given string or string
-reference. The name is given by the optional second argument.
+reference. The name is given by the second argument.
 Returns the new member. The last modification time will be
 set to now, and the file attributes will be set to permissive
 defaults.
@@ -1492,7 +1492,10 @@ data.
 =head1 AUTHOR
 
 
-Ned Konz, nedkonz@cpan.org
+Ned Konz, <nedkonz@cpan.org>
+
+
+File attributes code by Maurice Aubrey <maurice@lovelyfilth.com>
 
 =head1 COPYRIGHT
 

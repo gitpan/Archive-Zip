@@ -21,6 +21,55 @@ The questions are not in any particular order. The answers assume the current
 version of Archive::Zip; some of the answers depend on newly added/fixed
 functionality.
 
+=head1 Install problems on RedHat 8 or 9 with Perl 5.8.0
+
+
+B<Q:> Archive::Zip won't install on my RedHat 9 system! It's broke!
+
+
+B<A:> This has become something of a FAQ.
+Basically, RedHat broke Perl by setting LANG to UTF8
+They apparently have a fixed version in RawHide.
+
+You 
+might try running CPAN or creating your Makefile after exporting the 
+LANG environment variable 
+as
+
+LANG=C
+
+https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=87682
+
+
+=head1 Why is my zip file so big?
+
+
+B<Q:> My zip file is actually bigger than what I stored in it! Why?
+
+
+B<A:> Some things to make sure of:
+
+=over 4
+
+=item Make sure that you are requesting COMPRESSION_DEFLATED if you are storing strings.
+
+
+
+
+$member->desiredCompressionMethod( COMPRESSION_DEFLATED );
+
+
+=item Don't make lots of little files if you can help it.
+
+
+
+Since zip computes the compression tables for each member, small
+members without much entropy won't compress well.  Instead, if you've
+got lots of repeated strings in your data, try to combine them into
+one big member.
+
+=back
+
 =head1 Sample code?
 
 

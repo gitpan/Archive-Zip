@@ -1,5 +1,10 @@
 Revision history for Perl extension Archive::Zip.
 
+1.07 Mon Oct 20 06:48:41 PDT 2003
+  - Added file attribute code by Maurice Aubrey
+  - Added FAQ about RedHat 9
+  - Added check for empty filenames
+
 1.06 Thu Jul 17 11:06:18 PDT 2003
   - Fixed seek use with IO::Scalar and IO::String
   - Fixed use of binmode with pseudo-file handles

@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.82 $
+# $Revision: 1.84 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -39,7 +39,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.06";
+	$VERSION = "1.07";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -50,8 +50,9 @@ BEGIN
 	  IFA_BINARY_FILE );
 
 	my @MiscConstantNames = qw( FA_AMIGA FA_VAX_VMS FA_VM_CMS FA_ATARI_ST
-	  FA_OS2_HPFS FA_MACINTOSH FA_Z_SYSTEM FA_CPM FA_WINDOWS_NTFS
-	  GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK
+	  FA_OS2_HPFS FA_MACINTOSH FA_Z_SYSTEM FA_CPM FA_TOPS20
+      FA_WINDOWS_NTFS FA_QDOS FA_ACORN FA_VFAT FA_MVS FA_BEOS FA_TANDEM
+      FA_THEOS GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK
 	  GPBF_IMPLODING_3_SHANNON_FANO_TREES_MASK
 	  GPBF_IS_COMPRESSED_PATCHED_DATA_MASK COMPRESSION_SHRUNK
 	  DEFLATING_COMPRESSION_NORMAL DEFLATING_COMPRESSION_MAXIMUM
@@ -109,8 +110,25 @@ use constant AZ_IO_ERROR     => 4;
 # File types
 # Values of Archive::Zip::Member->fileAttributeFormat()
 
-use constant FA_MSDOS => 0;
-use constant FA_UNIX  => 3;
+use constant FA_MSDOS        => 0;
+use constant FA_AMIGA        => 1;
+use constant FA_VAX_VMS      => 2;
+use constant FA_UNIX         => 3;
+use constant FA_VM_CMS       => 4;
+use constant FA_ATARI_ST     => 5;
+use constant FA_OS2_HPFS     => 6;
+use constant FA_MACINTOSH    => 7;
+use constant FA_Z_SYSTEM     => 8;
+use constant FA_CPM          => 9;
+use constant FA_TOPS20       => 10;
+use constant FA_WINDOWS_NTFS => 11;
+use constant FA_QDOS         => 12;
+use constant FA_ACORN        => 13;
+use constant FA_VFAT         => 14;
+use constant FA_MVS          => 15;
+use constant FA_BEOS         => 16;
+use constant FA_TANDEM       => 17;
+use constant FA_THEOS        => 18;
 
 # general-purpose bit flag masks
 # Found in Archive::Zip::Member->bitFlag()
@@ -165,16 +183,6 @@ use constant END_OF_CENTRAL_DIRECTORY_SIGNATURE_STRING =>
   pack( "V", END_OF_CENTRAL_DIRECTORY_SIGNATURE );
 use constant END_OF_CENTRAL_DIRECTORY_FORMAT => "v4 V2 v";
 use constant END_OF_CENTRAL_DIRECTORY_LENGTH => 18;
-
-use constant FA_AMIGA        => 1;
-use constant FA_VAX_VMS      => 2;
-use constant FA_VM_CMS       => 4;
-use constant FA_ATARI_ST     => 5;
-use constant FA_OS2_HPFS     => 6;
-use constant FA_MACINTOSH    => 7;
-use constant FA_Z_SYSTEM     => 8;
-use constant FA_CPM          => 9;
-use constant FA_WINDOWS_NTFS => 10;
 
 use constant GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK => 1 << 1;
 use constant GPBF_IMPLODING_3_SHANNON_FANO_TREES_MASK  => 1 << 2;
@@ -1144,8 +1152,8 @@ use vars qw( @ISA );
 
 BEGIN
 {
-	use Archive::Zip qw( :CONSTANTS :ERROR_CODES :PKZIP_CONSTANTS
-	  :UTILITY_METHODS );
+	use Archive::Zip qw( :CONSTANTS :MISC_CONSTANTS :ERROR_CODES 
+      :PKZIP_CONSTANTS :UTILITY_METHODS );
 }
 
 use Time::Local();
@@ -1383,19 +1391,100 @@ sub _mapPermissionsFromUnix    # Archive::Zip::Member
 }
 
 # Convert ZIP permissions into Unix ones
-# NOT A METHOD!
+#
+# This was taken from Info-ZIP group's portable UnZip
+# zipfile-extraction program, version 5.50.
+# http://www.info-zip.org/pub/infozip/ 
+#
+# See the mapattr() function in unix/unix.c
+# See the attribute format constants in unzpriv.h
+#
+# XXX Note that there's one situation that isn't implemented
+# yet that depends on the "extra field."
 sub _mapPermissionsToUnix    # Archive::Zip::Member
 {
-	my $perms = shift;
-	return $perms >> 16;
+	my $self = shift;
 
-	# TODO: Handle non-Unix perms
+	my $format  = $self->{'fileAttributeFormat'};
+	my $attribs = $self->{'externalFileAttributes'};
+
+	my $mode = 0;
+
+	if ( $format == FA_AMIGA )
+	{
+		$attribs = $attribs >> 17 & 7;                         # Amiga RWE bits
+		$mode    = $attribs << 6 | $attribs << 3 | $attribs;
+		return $mode;
+	}
+
+	if ( $format == FA_THEOS )
+	{
+		$attribs &= 0xF1FFFFFF;
+		if ( ( $attribs & 0xF0000000 ) != 0x40000000 )
+		{
+			$attribs &= 0x01FFFFFF;    # not a dir, mask all ftype bits
+		}
+		else
+		{
+			$attribs &= 0x41FFFFFF;    # leave directory bit as set
+		}
+	}
+
+	if ( $format == FA_UNIX
+		|| $format == FA_VAX_VMS
+		|| $format == FA_ACORN
+		|| $format == FA_ATARI_ST
+		|| $format == FA_BEOS
+		|| $format == FA_QDOS
+		|| $format == FA_TANDEM )
+	{
+		$mode = $attribs >> 16;
+		return $mode if $mode != 0 or not $self->localExtraField;
+
+		warn "local extra field is: ", $self->localExtraField, "\n";
+
+		# XXX This condition is not implemented
+		# I'm just including the comments from the info-zip section for now.
+
+		# Some (non-Info-ZIP) implementations of Zip for Unix and
+		# VMS (and probably others ??) leave 0 in the upper 16-bit
+		# part of the external_file_attributes field. Instead, they
+		# store file permission attributes in some extra field.
+		# As a work-around, we search for the presence of one of
+		# these extra fields and fall back to the MSDOS compatible
+		# part of external_file_attributes if one of the known
+		# e.f. types has been detected.
+		# Later, we might implement extraction of the permission
+		# bits from the VMS extra field. But for now, the work-around
+		# should be sufficient to provide "readable" extracted files.
+		# (For ASI Unix e.f., an experimental remap from the e.f.
+		# mode value IS already provided!)
+	}
+
+	# PKWARE's PKZip for Unix marks entries as FA_MSDOS, but stores the
+	# Unix attributes in the upper 16 bits of the external attributes
+	# field, just like Info-ZIP's Zip for Unix.  We try to use that
+	# value, after a check for consistency with the MSDOS attribute
+	# bits (see below).
+	if ( $format == FA_MSDOS )
+	{
+		$mode = $attribs >> 16;
+	}
+
+	# FA_MSDOS, FA_OS2_HPFS, FA_WINDOWS_NTFS, FA_MACINTOSH, FA_TOPS20
+	$attribs = !( $attribs & 1 ) << 1 | ( $attribs & 0x10 ) >> 4;
+
+	# keep previous $mode setting when its "owner"
+	# part appears to be consistent with DOS attribute flags!
+	return $mode if ( $mode & 0700 ) == ( 0400 | $attribs << 6 );
+	$mode = 0444 | $attribs << 6 | $attribs << 3 | $attribs;
+	return $mode;
 }
 
 sub unixFileAttributes    # Archive::Zip::Member
 {
 	my $self     = shift;
-	my $oldPerms = _mapPermissionsToUnix( $self->{'externalFileAttributes'} );
+	my $oldPerms = $self->_mapPermissionsToUnix();
 	if (@_)
 	{
 		my $perms = shift;
@@ -2004,6 +2093,8 @@ sub _writeToFileHandle    # Archive::Zip::Member
 	my $fh           = shift;
 	my $fhIsSeekable = shift;
 	my $offset       = shift;
+
+	return _error("no member name given for $self") unless $self->fileName();
 
 	$self->{'writeLocalHeaderRelativeOffset'} = $offset;
 	$self->{'wasWritten'}                     = 0;
