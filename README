@@ -13,3 +13,10 @@ Zip files, or from existing directories, files, or strings.
 This module uses the Compress::Zlib library to read and write the
 compressed streams inside the files.
 
+Examples and helper libraries are given to show how:
+  * zip files can be written to strings
+  * zip files can be written in chunks to arbitrary functions
+
+Copyright (c) 2000 Ned Konz. All rights reserved.  This program is free
+software; you can redistribute it and/or modify it under the same terms
+as Perl itself.

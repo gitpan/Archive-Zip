@@ -7,7 +7,7 @@ use Archive::Zip::MockFileHandle;
 
 package NedsFileHandle;
 use vars qw(@ISA);
-@ISA = qw( MockFileHandle );
+@ISA = qw( Archive::Zip::MockFileHandle );
 
 sub writeHook
 {

@@ -1,4 +1,4 @@
-# $Revision: 1.7 $
+# $Revision: 1.9 $
 # Before `make install' is performed this script should be runnable
 # with `make test'. After `make install' it should work as
 # `perl t/test.t'
@@ -10,7 +10,7 @@ use Test;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use FileHandle;
 
-BEGIN { plan tests => 114, todo => [] }
+BEGIN { plan tests => 124, todo => [] }
 
 BEGIN { require 't/common.pl' }
 
@@ -109,6 +109,8 @@ ok($status, AZ_OK);
 skip(! $testZipWorks, $status, 0);
 
 ok($member->crc32(), TESTSTRINGCRC);
+
+ok($member->crc32String(), sprintf("%08x", TESTSTRINGCRC));
 
 #--------- extract it by name
 $status = $zip->extractMember($memberName);
@@ -355,7 +357,7 @@ ok($status, AZ_OK);
 skip(! $testZipWorks, $status, 0);
 
 #--------- Make sure that we haven't renamed files (this happened!)
-ok(scalar($zip->membersMatching('2.txt')), 4);
+ok(scalar($zip->membersMatching('2\.txt$')), 4);
 
 #--------- Now try extracting everyone
 @members = $zip->members();
@@ -394,12 +396,51 @@ ok($zip->extractMember($members[8]), AZ_OK);
 		binmode($fh);
 	}
 	skip(!$catWorks, $fh);
-	$status = $zip->writeToFileHandle($fh, 0) if ($catWorks);
+#	$status = $zip->writeToFileHandle($fh, 0) if ($catWorks);
+	$status = $zip->writeToFileHandle($fh) if ($catWorks);
 	skip(!$catWorks, $status, AZ_OK);
 	$fh->close() if ($catWorks);
 	($status, $zipout) = testZip();
 	ok($status, 0);
 }
+
+#--------- Change the contents of a string member
+ok(ref($members[2]), 'Archive::Zip::StringMember');
+$members[2]->contents( "This is my new contents\n" );
+
+#--------- write zip out and test it.
+$status = $zip->writeToFileNamed( OUTPUTZIP );
+ok($status, AZ_OK);
+
+($status, $zipout) = testZip();
+# STDERR->print("status= $status, out=$zipout\n");
+skip(! $testZipWorks, $status, 0);
+
+#--------- Change the contents of a file member
+ok(ref($members[1]), 'Archive::Zip::NewFileMember');
+$members[1]->contents( "This is my new contents\n" );
+
+#--------- write zip out and test it.
+$status = $zip->writeToFileNamed( OUTPUTZIP );
+ok($status, AZ_OK);
+
+($status, $zipout) = testZip();
+# STDERR->print("status= $status, out=$zipout\n");
+skip(! $testZipWorks, $status, 0);
+
+#--------- Change the contents of a zip member
+
+ok(ref($members[7]), 'Archive::Zip::ZipFileMember');
+$members[7]->contents( "This is my new contents\n" );
+
+#--------- write zip out and test it.
+$status = $zip->writeToFileNamed( OUTPUTZIP );
+ok($status, AZ_OK);
+
+($status, $zipout) = testZip();
+# STDERR->print("status= $status, out=$zipout\n");
+skip(! $testZipWorks, $status, 0);
+
 
 #--------- now clean up
 # END { system("rm -rf " . TESTDIR . " " . OUTPUTZIP . " " . INPUTZIP) }

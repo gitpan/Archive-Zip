@@ -1,5 +1,5 @@
 #!/bin/perl -w
-# $Revision: 1.5 $
+# $Revision: 1.6 $
 # Lists the zipfile given as a first argument and tests CRC's.
 # Usage:
 #	perl ziptest.pl zipfile.zip
@@ -12,7 +12,7 @@ package CRCComputingFileHandle;
 use Archive::Zip::MockFileHandle;
 
 use vars qw( @ISA );
-@ISA = qw( MockFileHandle );
+@ISA = qw( Archive::Zip::MockFileHandle );
 
 my $crc;
 

@@ -25,7 +25,7 @@ $Data::Dumper::Indent = 1;
 my $zip = Archive::Zip->new();
 my $zipFileName = shift(@ARGV);
 
-my $fh = BufferedFileHandle->new();
+my $fh = Archive::Zip::BufferedFileHandle->new();
 $fh->readFromFile($zipFileName) or exit($!);
 
 my $status = $zip->_findEndOfCentralDirectory($fh);
@@ -71,9 +71,9 @@ foreach my $n (0 .. $numberOfMembers - 1)
 	else
 	{
 		print "Found central directory for member #$index at $cdPos\n";
-		$fh->seek($cdPos, 0);	# SEEK_SET
-		my $newMember = $zip->ZIPMEMBERCLASS->_newFromZipFile("($zipFileName)",
-			$fh);
+		$fh->seek($cdPos + SIGNATURE_LENGTH, 0);	# SEEK_SET
+		my $newMember = $zip->ZIPMEMBERCLASS->_newFromZipFile(
+			$fh, "($zipFileName)" );
 		$status = $newMember->_readCentralDirectoryFileHeader();
 		if ($status != AZ_OK and $status != AZ_STREAM_END)
 		{
@@ -104,7 +104,7 @@ print "\n";
 foreach my $n (0 .. $#members)
 {
 	my $member = $members[$n];
-	$fh->seek($member->localHeaderRelativeOffset(), 0);
+	$fh->seek($member->localHeaderRelativeOffset() + SIGNATURE_LENGTH, 0);
 	$status = $member->_readLocalFileHeader();
 	if ($status != AZ_OK and $status != AZ_STREAM_END)
 	{

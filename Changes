@@ -1,7 +1,24 @@
 Revision history for Perl extension Archive::Zip.
 
-0.01  Sun Mar 12 18:59:55 2000
-	- original version; created by h2xs 1.19
+0.07  Fri Mar 24 10:26:51 PST 2000
+  - Added copyright
+  - Added desiredCompressionLevel() and documentation
+  - Made writeToFileHandle() detect seekability by default
+  - Allowed Archive::Zip->new() to take filename for read()
+  - Added crc32String() to Archive::Zip::Member
+  - Changed requirement in Makefile.PL to Compress::Zip
+    version 1.06 or later (bug in earlier versions can truncate data)
+  - Moved BufferedFileHandle and MockFileHandle into
+    Archive::Zip namespace
+  - Allowed changing error printing routine
+  - Factored out reading of signatures
+  - Made re-read of local header for directory members
+    depend on file handle seekability
+  - Added ability to change member contents
+  - Fixed a possible truncation bug in contents() method
 
 0.06  Tue Mar 21 15:28:22 PST 2000
-	- first release to CPAN
+  - first release to CPAN
+
+0.01  Sun Mar 12 18:59:55 2000
+  - original version; created by h2xs 1.19

@@ -21,7 +21,7 @@ WriteMakefile(
 			ABSTRACT_FROM	=> 'lib/Archive/Zip.pm',
 		)),
 	PREREQ_PM		=> {
-		'Compress::Zlib'    => 0,
+		'Compress::Zlib'    => 1.06,
 		'Carp'			    => 0,
 		'File::Path'	    => 0,
 		'File::Basename'	=> 0,

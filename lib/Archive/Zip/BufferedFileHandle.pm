@@ -1,8 +1,13 @@
-# file handle that uses a string internally and can seek
-# $Revision: 1.1 $
+# File handle that uses a string internally and can seek
+# This is given as a demo for getting a zip file written
+# to a string.
+# I probably should just use IO::Scalar instead.
+# Ned Konz, March 2000
+#
+# $Revision: 1.2 $
 
 use strict;
-package BufferedFileHandle;
+package Archive::Zip::BufferedFileHandle;
 use FileHandle ();
 use Carp;
 

@@ -1,8 +1,14 @@
-# output file handle that calls a custom write routine
-# $Revision: 1.1 $
+# Output file handle that calls a custom write routine
+# Ned Konz, March 2000
+# This is provided to help with writing zip files
+# when you have to process them a chunk at a time.
+#
+# See the examples.
+#
+# $Revision: 1.2 $
 
 use strict;
-package MockFileHandle;
+package Archive::Zip::MockFileHandle;
 
 sub new
 {
