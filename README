@@ -23,6 +23,6 @@ Documentation will be installed as man pages for:
 	Archive::Zip::Tree
 	Archive::Zip::MemberRead
 
-Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
+Copyright (c) 2000-2003 Ned Konz. All rights reserved.  This program is free
 software; you can redistribute it and/or modify it under the same terms
 as Perl itself.

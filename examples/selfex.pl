@@ -9,10 +9,9 @@
 # You can use 'unzipsfx' that it provided with the Info-Zip unzip program.
 # Get this from http://www.info-zip.org .
 #
-# $Revision: 1.5 $
+# $Revision: 1.6 $
 #
 use strict;
-use blib;
 
 use Archive::Zip;
 use IO::File;

@@ -39,3 +39,4 @@ t/testex.t                  Tests the examples
 t/testTree.t                Tests Archive::Zip::Tree
 t/testMemberRead.t          Tests Archive::Zip::MemberRead
 crc32                       Utility program to print out file CRC's
+META.yml                                 Module meta-data (added by MakeMaker)

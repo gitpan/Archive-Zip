@@ -1,5 +1,9 @@
 Revision history for Perl extension Archive::Zip.
 
+1.08 Tue Oct 21 07:01:29 PDT 2003
+  - test noise fix from Michael Schwern (ticket 4174)
+  - FAQ NAME fix from Michael Schwern (ticket 4175)
+
 1.07 Mon Oct 20 06:48:41 PDT 2003
   - Added file attribute code by Maurice Aubrey
   - Added FAQ about RedHat 9
