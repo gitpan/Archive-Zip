@@ -51,6 +51,7 @@ WriteMakefile(
 		'IO::Handle'		=> 0,
 		'IO::Seekable'		=> 0,
 		# 'Test'				=> 0,
+        'Test::More'        => 0,
 		'Time::Local'		=> 0,
 	},
 	EXE_FILES => [ qw( crc32 ) ],

@@ -27,7 +27,7 @@ ok(TESTSTRINGCRC, 0xac373f32);
 # new	# Archive::Zip::Archive
 $zip = Archive::Zip->new();
 ok(defined($zip));
-print $zip->setChunkSize(), "\n";
+
 # members	# Archive::Zip::Archive
 @members = $zip->members();
 ok(scalar(@members), 0);

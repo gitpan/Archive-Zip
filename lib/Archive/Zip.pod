@@ -944,7 +944,7 @@ If the fourth argument C<$mirror> is true, then delete all my members
 if corresponding files weren't found.
 
 
-Returns an error code or AZ_OK of all is well.
+Returns an error code or AZ_OK if all is well.
 
 =item $zip->extractTree()
 
@@ -1044,6 +1044,7 @@ a/x to f:\d\e\x
 
 a/b/c to f:\d\e\b\c and ignore ax/d/e and d/e
 
+Returns an error code or AZ_OK if everything worked OK.
 
 =back
 

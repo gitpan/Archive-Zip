@@ -41,7 +41,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.15_01";
+	$VERSION = "1.15_02";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -306,7 +306,7 @@ sub _binmode    # Archive::Zip
 
 # Attempt to guess whether file handle is seekable.
 # Because of problems with Windoze, this only returns true when
-# the file handle is a real file.
+# the file handle is a real file.  
 sub _isSeekable    # Archive::Zip
 {
 	my $fh = shift;
@@ -317,7 +317,7 @@ sub _isSeekable    # Archive::Zip
 	}
 	elsif ( UNIVERSAL::isa( $fh, 'IO::String' ) )
 	{
-		return 1;
+		return 1;	
 	}
 	elsif ( UNIVERSAL::can( $fh, 'stat' ) )
 	{
@@ -453,7 +453,8 @@ sub _asZipDirName    # Archive::Zip
 	my @dirs = map { $_ =~ s{/}{_}g; $_ } File::Spec->splitdir($directories);
 	if ( @dirs > 0 ) { pop (@dirs) unless $dirs[-1] }   # remove empty component
 	push ( @dirs, $file || '' );
-	return wantarray ? @dirs : join ( '/', @dirs );
+	#return wantarray ? @dirs : join ( '/', @dirs );
+    return join ( '/', @dirs );
 }
 
 # Return an absolute local name for a zip name.
@@ -637,8 +638,8 @@ sub extractMember    # Archive::Zip::Archive
 	my $self   = shift;
 	my $member = shift;
 	$member = $self->memberNamed($member) unless ref($member);
-    my $originalSize = $member->compressedSize();
 	return _error('member not found') unless $member;
+    my $originalSize = $member->compressedSize();
 	my $name = shift;    # local FS name if given
 	my ( $volumeName, $dirName, $fileName );
 	if ( defined($name) )
@@ -669,8 +670,8 @@ sub extractMemberWithoutPaths    # Archive::Zip::Archive
 	my $self   = shift;
 	my $member = shift;
 	$member = $self->memberNamed($member) unless ref($member);
-    my $originalSize = $member->compressedSize(); 
 	return _error('member not found') unless $member;
+    my $originalSize = $member->compressedSize();
 	return AZ_OK if $member->isDirectory();
 	my $name = shift;
 	unless ($name)
@@ -773,6 +774,9 @@ sub writeToFileHandle    # Archive::Zip::Archive
 {
 	my $self         = shift;
 	my $fh           = shift;
+    return _error('No filehandle given') unless $fh;
+    return _ioError('filehandle not open') unless $fh->opened();
+
 	my $fhIsSeekable = @_ ? shift: _isSeekable($fh);
 	_binmode($fh);
 

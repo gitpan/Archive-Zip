@@ -1,6 +1,15 @@
 Revision history for Perl extension Archive::Zip.
 
-1.15_01 Wed Mar 9 22:26:52 CST 2004
+1.15_02 Sat Mar 12 09:16:30 CST 2005 
+  - fixed dates in previous entry!
+  - began the process of migrating from the monolithic t/test.t to 
+    smaller scripts using Test::More.
+  - started work on improving Archive::Zip's test coverage.  Coverage
+    is now up to just over 80%.
+  - added error handling to writeToFileHandle
+  - fixed small bug in extractMember from previous version
+ 
+1.15_01 Wed Mar  9 22:26:52 CST 2005
   - added fix for RT #11818 extractMember method corrupts archive
   - added t/pod.t to test for pod correctness
 
