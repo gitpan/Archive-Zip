@@ -41,7 +41,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.14";
+	$VERSION = "1.15_01";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -637,6 +637,7 @@ sub extractMember    # Archive::Zip::Archive
 	my $self   = shift;
 	my $member = shift;
 	$member = $self->memberNamed($member) unless ref($member);
+    my $originalSize = $member->compressedSize();
 	return _error('member not found') unless $member;
 	my $name = shift;    # local FS name if given
 	my ( $volumeName, $dirName, $fileName );
@@ -657,7 +658,10 @@ sub extractMember    # Archive::Zip::Archive
 		mkpath($dirName);
 		return _ioError("can't create dir $dirName") if ( !-d $dirName );
 	}
-	return $member->extractToFileNamed( $name, @_ );
+	my $rc = $member->extractToFileNamed( $name, @_ );
+    # TODO refactor this fix into extractToFileNamed()
+    $member->{'compressedSize'} = $originalSize;
+    return $rc; 
 }
 
 sub extractMemberWithoutPaths    # Archive::Zip::Archive
@@ -665,6 +669,7 @@ sub extractMemberWithoutPaths    # Archive::Zip::Archive
 	my $self   = shift;
 	my $member = shift;
 	$member = $self->memberNamed($member) unless ref($member);
+    my $originalSize = $member->compressedSize(); 
 	return _error('member not found') unless $member;
 	return AZ_OK if $member->isDirectory();
 	my $name = shift;
@@ -674,7 +679,9 @@ sub extractMemberWithoutPaths    # Archive::Zip::Archive
 		$name =~ s{.*/}{};    # strip off directories, if any
 		$name = Archive::Zip::_asLocalName($name);
 	}
-	return $member->extractToFileNamed( $name, @_ );
+	my $rc = $member->extractToFileNamed( $name, @_ );
+    $member->{'compressedSize'} = $originalSize;
+    return $rc;
 }
 
 sub addMember    # Archive::Zip::Archive

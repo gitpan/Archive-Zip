@@ -1,5 +1,9 @@
 Revision history for Perl extension Archive::Zip.
 
+1.15_01 Wed Mar 9 22:26:52 CST 2004
+  - added fix for RT #11818 extractMember method corrupts archive
+  - added t/pod.t to test for pod correctness
+
 1.10 Thu Mar 25 06:24:17 PST 2004
   - Fixed documentation of setErrorHandler()
   - Fixed link to Japanese translation of docs
