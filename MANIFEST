@@ -17,6 +17,7 @@ examples/selfex.pl          a brief example of a self-extracting Zip
 examples/unzipAll.pl        uses Archive::Zip::Tree to unzip an entire Zip
 examples/updateZip.pl       shows how to read/modify/write a Zip
 examples/writeScalar.pl     shows how to use IO::Scalar as the destination of a Zip write
+examples/writeScalar2.pl    shows how to use IO::String as the destination of a Zip write
 examples/zip.pl             Constructs a Zip file
 examples/zipcheck.pl        One way to check a Zip file for validity
 examples/zipinfo.pl         Prints out information about a Zip archive file

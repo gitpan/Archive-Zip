@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.77 $
+# $Revision: 1.82 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -39,7 +39,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.05";
+	$VERSION = "1.06";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -279,7 +279,9 @@ sub _subclassResponsibility    # Archive::Zip
 sub _binmode    # Archive::Zip
 {
 	my $fh = shift;
-	return $fh->can('binmode') ? $fh->binmode() : binmode($fh);
+	return UNIVERSAL::can( $fh, 'binmode' )
+		? $fh->binmode()
+		: binmode($fh);
 }
 
 # Attempt to guess whether file handle is seekable.
@@ -288,7 +290,20 @@ sub _binmode    # Archive::Zip
 sub _isSeekable    # Archive::Zip
 {
 	my $fh = shift;
-	return -f $fh;
+
+	if ( UNIVERSAL::isa( $fh, 'IO::Scalar' ) )
+	{
+		return 0;
+	}
+	elsif ( UNIVERSAL::isa( $fh, 'IO::String' ) )
+	{
+		return 1;
+	}
+	elsif ( UNIVERSAL::can( $fh, 'stat' ) )
+	{
+		return -f $fh;
+	}
+	return UNIVERSAL::can( $fh, 'seek' );
 }
 
 # Return an opened IO::Handle
@@ -304,7 +319,8 @@ sub _newFileHandle    # Archive::Zip
 
 	if ( ref($fd) )
 	{
-		if ( UNIVERSAL::isa( $fd, 'IO::Scalar' ) )
+		if ( UNIVERSAL::isa( $fd, 'IO::Scalar' )
+			or UNIVERSAL::isa( $fd, 'IO::String' ) )
 		{
 			$handle = $fd;
 		}
@@ -399,12 +415,11 @@ sub _asLocalName    # Archive::Zip
 	my $name   = shift;    # zip format
 	my $volume = shift || '';    # local FS format
 
-	my $slash     = qr{/};
-	my @paths     = split ( $slash, $name );
+	my @paths     = split ( /\//, $name );
 	my $filename  = pop (@paths);
 	my $localDirs = File::Spec->catdir(@paths);
 	my $localName = File::Spec->catpath( $volume, $localDirs, $filename );
-	$localName = File::Spec->rel2abs($localName);
+	$localName = File::Spec->rel2abs($localName) unless $volume;
 	return $localName;
 }
 
@@ -584,8 +599,11 @@ sub extractMember    # Archive::Zip::Archive
 		$dirName = Archive::Zip::_asLocalName($dirName);
 		$name    = Archive::Zip::_asLocalName($name);
 	}
-	mkpath($dirName) if ( !-d $dirName );
-	return _ioError("can't create dir $dirName") if ( !-d $dirName );
+	if ( $dirName && !-d $dirName )
+	{
+		mkpath($dirName);
+		return _ioError("can't create dir $dirName") if ( !-d $dirName );
+	}
 	return $member->extractToFileNamed( $name, @_ );
 }
 
@@ -595,7 +613,7 @@ sub extractMemberWithoutPaths    # Archive::Zip::Archive
 	my $member = shift;
 	$member = $self->memberNamed($member) unless ref($member);
 	return _error('member not found') unless $member;
-	return if $member->isDirectory();
+	return AZ_OK if $member->isDirectory();
 	my $name = shift;
 	unless ($name)
 	{
@@ -797,7 +815,7 @@ sub _readSignature    # Archive::Zip::Archive
 		and $signature != END_OF_CENTRAL_DIRECTORY_SIGNATURE )
 	{
 		my $errmsg = sprintf( "bad signature: 0x%08x", $signature );
-		if ( _isSeekable( $self->fh() ) )
+		if ( _isSeekable( $fh ) )
 		{
 			$errmsg .=
 			  sprintf( " at offset %d", $fh->tell() - SIGNATURE_LENGTH );
@@ -1054,7 +1072,7 @@ sub addTree    # Archive::Zip::Archive
 
 	my $rootZipName =
 	  Archive::Zip::_asZipDirName( $root, 1 );    # with trailing slash
-	my $pattern = $rootZipName eq './' ? qr{^} : qr{^\Q$rootZipName\E};
+	my $pattern = $rootZipName eq './' ? '^' : "^\Q$rootZipName\E";
 
 	$dest = Archive::Zip::_asZipDirName( $dest, 1 );    # with trailing slash
 
@@ -1084,7 +1102,6 @@ sub addTreeMatching    # Archive::Zip::Archive
 	my $dest = shift || '';
 	my $pattern = shift
 	  or return _error("pattern missing in call to addTreeMatching()");
-	$pattern = qr{$pattern};
 	my $pred    = shift;
 	my $matcher =
 	  $pred ? sub { m{$pattern} && &$pred } : sub { m{$pattern} && -r };
@@ -1100,11 +1117,10 @@ sub extractTree    # Archive::Zip::Archive
 {
 	my $self = shift ();
 	my $root = shift () || '';	# Zip format
-	my $dest = shift || '.';	# Zip format
+	my $dest = shift || './';	# Zip format
 	my $volume = shift;			# optional
-	my $pattern = qr{^\Q$root};
+	my $pattern = "^\Q$root";
 	my @members = $self->membersMatching($pattern);
-	my $slash   = qr{/};
 
 	foreach my $member (@members)
 	{
@@ -2193,6 +2209,7 @@ sub _openFile    # Archive::Zip::FileMember
 sub _closeFile    # Archive::Zip::FileMember
 {
 	my $self = shift;
+	my $fh = $self->{'fh'};
 	$self->{'fh'} = undef;
 }
 

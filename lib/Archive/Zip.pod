@@ -631,6 +631,12 @@ if given, must be in Zip name format (i.e. Unix).
 The text mode bit will be set if the contents appears to be
 text (as returned by the C<-T> perl operator).
 
+
+I<NOTE> that you shouldn't (generally) use absolute path names
+in zip member names, as this will cause problems with some zip
+tools as well as introduce a security hole and make the zip
+harder to use.
+
 =item addDirectory( $directoryName [, $fileName ] )
 
 
@@ -872,21 +878,6 @@ identical in the zipfile:
   ./a/                    a/
   ./a/b                   a/b
 
-To use absolute pathnames, just pass them in: $zip->addTree(
-'/a/b', '/a/b' );
-
-  original name           zip member name
-  /a/                     /a/
-  /a/b                    /a/b
-
-To translate relative to absolute pathnames, just pass them
-in: $zip->addTree( '.', '/c/d' );
-
-  original name           zip member name
-  ./xyz                   /c/d/xyz
-  ./a/                    /c/d/a/
-  ./a/b                   /c/d/a/b
-
 To translate absolute to relative pathnames, just pass them
 in: $zip->addTree( '/c/d', 'a' );
 
@@ -898,6 +889,10 @@ in: $zip->addTree( '/c/d', 'a' );
 Returns AZ_OK on success. Note that this will not follow
 symbolic links to directories. Note also that this does not
 check for the validity of filenames.
+
+
+Note that you generally I<don't> want to make zip archive member names
+absolute.
 
 =item $zip->addTreeMatching( $root, $dest, $pattern [,$pred] )
 

@@ -1,5 +1,16 @@
 Revision history for Perl extension Archive::Zip.
 
+1.06 Thu Jul 17 11:06:18 PDT 2003
+  - Fixed seek use with IO::Scalar and IO::String
+  - Fixed use of binmode with pseudo-file handles
+  - Removed qr{} form for older Perl versions
+  - Changed rel2abs logic in _asLocalName() if there is a volume
+  - Fixed errors with making directories in extractMember() when none provided
+  - Return AZ_OK in extractMemberWithoutPaths() if member is a directory
+  - Fixed problem in extractTree with blank directory becoming "." prefix
+  - Added examples/writeScalar2.pl to show how to use IO::String as destination of Zip write
+  - Edited docs and FAQ to recommend against using absolute path names in zip files.
+
 1.05 Wed Sep 11 12:31:20 PDT 2002
   - fixed untaint from 1.04
 

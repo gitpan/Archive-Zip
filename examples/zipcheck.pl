@@ -32,7 +32,7 @@ eval
 		my $status = $member->extractToFileHandle($fh);
 		if ($status != AZ_OK)
 		{
-			warn "Extracting ", $member->name(), " from $zipName failed\n";
+			warn "Extracting ", $member->fileName(), " from $zipName failed\n";
 			exit $status;
 		}
 	}
