@@ -377,18 +377,6 @@ not just set it to a number):
 
     $Carp::CarpLevel++;
 
-=item Archive::Zip::tempName( [$tmpdir] )
-
-
-
-Create a unique name for a temp file, in the given directory
-or in the first one of:
-
-    /tmp
-    $ENV{TMPDIR}
-    $ENV{TEMP}
-    .
-
 =item Archive::Zip::tempFile( [$tmpdir] )
 
 
@@ -396,28 +384,21 @@ or in the first one of:
 Create a uniquely named temp file. It will be returned open
 for read/write. If C<$tmpdir> is given, it is used as the
 name of a directory to create the file in. If not given,
-creates the file in the first directory found in this list:
+creates the file using C<File::Spec::tmpdir()>. Generally, you can
+override this choice using the
 
-    /tmp
     $ENV{TMPDIR}
-    $ENV{TEMP}
-    .
 
-Will create C<$tmpdir> if it doesn't exist; will C<die> if it
-can't create the directory. Returns file handle and name:
+environment variable. But see the L<File::Spec|File::Spec>
+documentation for your system. Note that on many systems, if you're
+running in taint mode, then you must make sure that C<$ENV{TMPDIR}> is
+untainted for it to be used.
+Will I<NOT> create C<$tmpdir> if it doesn't exist (this is a change
+from prior versions!). Returns file handle and name:
 
     my ($fh, $name) = Archive::Zip::tempFile();
     my ($fh, $name) = Archive::Zip::tempFile('myTempDir');
     my $fh = Archive::Zip::tempFile();  # if you don't need the name
-
-
-=item Archive::Zip::useSymbolicLinks( [$wants] )
-
-Get or set the status of C<useSymbolicLinks>. If set to a
-true value, on systems that support symbolic links they
-will be read and stored instead of the file data.
-
-Default is to not store symbolic links.
 
 =back
 

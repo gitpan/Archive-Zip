@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.104 $
+# $Revision: 1.104.2.1 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -41,7 +41,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.13";
+	$VERSION = "1.14";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -2929,14 +2929,16 @@ sub _readCentralDirectoryFileHeader    # Archive::Zip::ZipFileMember
 		return _ioError("reading central dir header");
 	}
 	my ( $fileNameLength, $extraFieldLength, $fileCommentLength );
-	( $self->{'versionMadeBy'},          $self->{'fileAttributeFormat'},
-	  $self->{'versionNeededToExtract'}, $self->{'bitFlag'},
-	  $self->{'compressionMethod'},      $self->{'lastModFileDateTime'},
-	  $self->{'crc32'},                  $self->{'compressedSize'},
-	  $self->{'uncompressedSize'},       $fileNameLength,
-	  $extraFieldLength,                 $fileCommentLength,
-	  $self->{'diskNumberStart'},        $self->{'internalFileAttributes'},
-	  $self->{'externalFileAttributes'}, $self->{'localHeaderRelativeOffset'} )
+	(
+		$self->{'versionMadeBy'},          $self->{'fileAttributeFormat'},
+		$self->{'versionNeededToExtract'}, $self->{'bitFlag'},
+		$self->{'compressionMethod'},      $self->{'lastModFileDateTime'},
+		$self->{'crc32'},                  $self->{'compressedSize'},
+		$self->{'uncompressedSize'},       $fileNameLength,
+		$extraFieldLength,                 $fileCommentLength,
+		$self->{'diskNumberStart'},        $self->{'internalFileAttributes'},
+		$self->{'externalFileAttributes'}, $self->{'localHeaderRelativeOffset'}
+	)
 	  = unpack( CENTRAL_DIRECTORY_FILE_HEADER_FORMAT, $header );
 
 	$self->{'eocdCrc32'} = $self->{'crc32'};
@@ -2964,6 +2966,13 @@ sub _readCentralDirectoryFileHeader    # Archive::Zip::ZipFileMember
 		{
 			return _ioError("reading central dir file comment");
 		}
+	}
+
+	# NK 10/21/04: added to avoid problems with manipulated headers
+	if (    $self->{'uncompressedSize'} != $self->{'compressedSize'}
+		and $self->{'compressionMethod'} == COMPRESSION_STORED )
+	{
+		$self->{'uncompressedSize'} = $self->{'compressedSize'};
 	}
 
 	$self->desiredCompressionMethod( $self->compressionMethod() );
