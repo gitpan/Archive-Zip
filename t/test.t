@@ -46,6 +46,8 @@ skip($testZipDoesntWork, $status != 0);
 
 #--------- add a directory
 $memberName = TESTDIR;
+my $dirName = TESTDIR;
+$dirName =~ s:/$::;
 
 # addDirectory	# Archive::Zip::Archive
 # new	# Archive::Zip::Member
@@ -75,13 +77,13 @@ skip($testZipDoesntWork, $status, 0);
 rmtree([ TESTDIR ], 0, 0);
 $status = $zip->extractMember($memberName);
 ok($status, AZ_OK);
-ok(-d $memberName);
+ok(-d $dirName);
 
 #--------- extract the directory by identity
-ok(rmdir(TESTDIR));	# it's still empty
+ok(rmdir($dirName));	# it's still empty
 $status = $zip->extractMember($member);
 ok($status, AZ_OK);
-ok(-d $memberName);
+ok(-d $dirName);
 
 #--------- add a string member, uncompressed
 $memberName = TESTDIR . 'string.txt';

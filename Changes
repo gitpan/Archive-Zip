@@ -1,4 +1,29 @@
 Revision history for Perl extension Archive::Zip.
+
+1.01 Tue Apr 30 10:34:44 PDT 2002
+  - Changed mkpath call for directories to work with BSD/OS
+  - Changed tests to work with BSD/OS
+
+1.00 Sun Apr 28 2002
+  - Added several examples:
+    - examples/calcSizes.pl
+      How to find out how big a zip file will be before writing it
+    - examples/readScalar.pl
+      shows how to use IO::Scalar as the source of a zip read
+    - examples/unzipAll.pl
+      uses Archive::Zip::Tree to unzip an entire zip
+    - examples/writeScalar.pl
+      shows how to use IO::Scalar as the destination of a zip write
+    - examples/zipGrep.pl
+      Searches for text in zip files
+  - Changed required version of Compress::Zlib to 1.08
+  - Added detection and repair of zips with added garbage (as caused by
+    the Sircam worm)
+  - Added more documentation for FAQ-type questions, though few seem to
+    actually read the documentation.
+  - Fixed problem with stat vs lstat
+  - Changed version number to 1.00 for PHB compatibility
+
 0.12 Wed May 23 17:48:21 PDT 2001
   - Added writeScalar.pl and readScalar.pl to show use of IO::Scalar
   - Fixed docs

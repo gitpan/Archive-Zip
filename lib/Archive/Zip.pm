@@ -141,7 +141,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.00";
+	$VERSION = "1.01";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -3034,6 +3034,7 @@ sub extractToFileNamed    # Archive::Zip::DirectoryMember
 {
 	my $self    = shift;
 	my $name    = shift;
+	$name =~ s:/$::;
 	my $attribs = $self->unixFileAttributes() & 07777;
 	mkpath( $name, 0, $attribs );    # croaks on error
 	return AZ_OK;
