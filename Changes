@@ -1,5 +1,14 @@
 Revision history for Perl extension Archive::Zip.
 
+1.03 Mon Sep  2 20:42:43 PDT 2002
+  - Removed dependency on IO::Scalar
+  - Set required version of File::Spec to 0.8
+  - Removed tests of examples that needed IO::Scalar
+  - Added binmode() call to read/writeScalar examples
+  - Fixed addTree() for 5.005 compatibility (still untested with 5.004)
+  - Fixed mkdir() calls for 5.005
+  - Clarified documentation of tree operations
+
 1.02 Fri Aug 23 17:07:22 PDT 2002
   - Many changes for cross-platform use (use File::Spec everywhere)
   - Separated POD from Perl

@@ -5,7 +5,7 @@ package Archive::Zip::MemberRead;
 # software; you can redistribute it and/or modify it under the same terms
 # as Perl itself.
 #
-# $Revision: 1.2 $
+# $Revision: 1.4 $
 
 =head1 NAME
 
@@ -26,6 +26,13 @@ Archive::Zip::MemberRead - A wrapper that lets you read Zip archive members as i
 
   $read = $fh->read($buffer, 32*1024);
   print "Read $read bytes as :$buffer:\n";
+
+=head1 DESCRIPTION
+
+The Archive::Zip::MemberRead module lets you read Zip archive member data
+just like you read data from files.
+
+=head1 METHODS
 
 =over 4
 

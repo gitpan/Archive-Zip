@@ -16,6 +16,7 @@ $member->desiredCompressionMethod(COMPRESSION_DEFLATED);
 my $status = $zip->writeToFileHandle( $SH );
 
 my $file = IO::File->new('test.zip', 'w');
+binmode($file);
 $file->print($zipContents);
 $file->close();
 

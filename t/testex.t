@@ -1,5 +1,5 @@
 # Test examples
-# $Revision: 1.5 $
+# $Revision: 1.6 $
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl t/testex.t'
 # vim: ts=4 sw=4 ft=perl
@@ -12,7 +12,7 @@ use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use File::Spec;
 use IO::File;
 
-BEGIN { plan tests => 12, todo => [] }
+BEGIN { plan tests => 11, todo => [] }
 
 BEGIN { require 't/common.pl' }
 
@@ -59,7 +59,8 @@ ok( $output, ZFILENAME . ":100\n" );
 # calcSizes.pl
 # creates test.zip, may be sensitive to /dev/null
 
-ok( runPerlCommand('examples/readScalar.pl'), 0 );
+# removed because requires IO::Scalar
+# ok( runPerlCommand('examples/readScalar.pl'), 0 );
 
 unlink(OUTPUTZIP);
 ok( runPerlCommand( 'examples/selfex.pl', OUTPUTZIP, FILENAME ), 0 );

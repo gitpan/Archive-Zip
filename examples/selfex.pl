@@ -9,7 +9,7 @@
 # You can use 'unzipsfx' that it provided with the Info-Zip unzip program.
 # Get this from http://www.info-zip.org .
 #
-# $Revision: 1.4 $
+# $Revision: 1.5 $
 #
 use strict;
 use blib;
@@ -60,7 +60,7 @@ my $zip = Archive::Zip->new();
 my $fh = IO::File->new($0) or die "Can't open $0\: $!\n";
 die "Zip read error\n" unless $zip->readFromFileHandle($fh) == AZ_OK;
 
-(mkdir($dir) or die "Can't create directory $dir\: $!\n") unless -d $dir;
+(mkdir($dir, 0777) or die "Can't create directory $dir\: $!\n") unless -d $dir;
 
 for my $member ( $zip->members )
 {

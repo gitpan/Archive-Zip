@@ -848,8 +848,8 @@ A usage example:
 
 
 
-$root is the root of the tree of files and directories to be
-added. It is a valid directory name on your system. $dest is
+C<$root> is the root of the tree of files and directories to be
+added. It is a valid directory name on your system. C<$dest> is
 the name for the root in the zip file (undef or blank means
 to use relative pathnames). It is a valid ZIP directory name
 (that is, it uses forward slashes (/) for separating
@@ -930,15 +930,45 @@ symbolic links to directories.
 
 
 
+=item $zip->extractTree( $root )
+
+
+
 =item $zip->extractTree( $root, $dest )
 
 
 
+=item $zip->extractTree( $root, $dest, $volume )
+
+
+
 If you don't give any arguments at all, will extract all the
-files in the zip with their original names. If you give
-arguments, C<extractTree> extracts all the members whose path
-names start with C<$root>. Will translate that root to a
-given dest pathname. For instance,
+files in the zip with their original names.
+
+
+If you supply one argument for C<$root>, C<extractTree> will extract
+all the members whose names start with C<$root> into the current
+directory, stripping off C<$root> first.
+C<$root> is in Zip (Unix) format.
+For instance,
+
+  $zip->extractTree( 'a' );
+
+when applied to a zip containing the files:
+a/x a/b/c ax/d/e d/e will extract:
+
+
+a/x as ./x
+
+
+a/b/c as ./b/c
+
+
+If you give two arguments, C<extractTree> extracts all the members
+whose names start with C<$root>. It will translate C<$root> into
+C<$dest> to construct the destination file name.
+C<$root> and C<$dest> are in Zip (Unix) format.
+For instance,
 
    $zip->extractTree( 'a', 'd/e' );
 
@@ -950,6 +980,50 @@ a/x to d/e/x
 
 
 a/b/c to d/e/b/c and ignore ax/d/e and d/e
+
+
+If you give three arguments, C<extractTree> extracts all the members
+whose names start with C<$root>. It will translate C<$root> into
+C<$dest> to construct the destination file name, and then it will
+convert to local file system format, using C<$volume> as the name of
+the destination volume.
+
+
+C<$root> and C<$dest> are in Zip (Unix) format.
+
+
+C<$volume> is in local file system format.
+
+
+For instance, under Windows,
+
+   $zip->extractTree( 'a', 'd/e', 'f:' );
+
+when applied to a zip containing the files:
+a/x a/b/c ax/d/e d/e will extract:
+
+
+a/x to f:d/e/x
+
+
+a/b/c to f:d/e/b/c and ignore ax/d/e and d/e
+
+
+If you want absolute paths (the prior example used paths relative to
+the current directory on the destination volume, you can specify these
+in C<$dest>:
+
+   $zip->extractTree( 'a', '/d/e', 'f:' );
+
+when applied to a zip containing the files:
+a/x a/b/c ax/d/e d/e will extract:
+
+
+a/x to f:\d\e\x
+
+
+a/b/c to f:\d\e\b\c and ignore ax/d/e and d/e
+
 
 =back
 

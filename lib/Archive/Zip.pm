@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.69 $
+# $Revision: 1.75 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -22,7 +22,7 @@ use Carp();
 use IO::File();
 use IO::Seekable();
 use Compress::Zlib();
-use File::Spec();
+use File::Spec 0.8 ();
 
 use vars
   qw( @ISA @EXPORT_OK %EXPORT_TAGS $VERSION $ChunkSize $ErrorHandler $TempSequence);
@@ -39,7 +39,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.02";
+	$VERSION = "1.03";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -343,7 +343,7 @@ sub tempFileName    # Archive::Zip
 	  || ( -d '/tmp' ? '/tmp' : $ENV{TMPDIR} || $ENV{TEMP} || '.' );
 	unless ( -d $temp_dir )
 	{
-		mkdir($temp_dir) or die "Can't create temp directory $temp_dir\: $!\n";
+		mkdir($temp_dir, 0777) or die "Can't create temp directory $temp_dir\: $!\n";
 	}
 	my $base_name =
 	  sprintf( "%d-%d.%d", $$, time(), $Archive::Zip::TempSequence++ );
@@ -390,20 +390,20 @@ sub _asZipDirName    # Archive::Zip
 	return wantarray ? @dirs : join ( '/', @dirs );
 }
 
-# Return a local name for a zip name.
+# Return an absolute local name for a zip name.
 # Assume a directory if zip name has trailing slash.
-# Takes an optional basename.
+# Takes an optional volume name in FS format (like 'a:').
 #
 sub _asLocalName    # Archive::Zip
 {
-	my $name     = shift;
-	my $slash    = qr{/};
-	my @paths    = split ( $slash, $name );
-	my $basename = shift;
-	$basename = pop (@paths) unless defined($basename);
+	my $name   = shift;    # zip format
+	my $volume = shift || '';    # local FS format
+
+	my $slash     = qr{/};
+	my @paths     = split ( $slash, $name );
+	my $filename  = pop (@paths);
 	my $localDirs = File::Spec->catdir(@paths);
-	my ( $vol, $wd, undef ) = File::Spec->splitpath( File::Spec->curdir(), 1 );
-	my $localName = File::Spec->catpath( $vol, $localDirs, $basename );
+	my $localName = File::Spec->catpath( $volume, $localDirs, $filename );
 	$localName = File::Spec->rel2abs($localName);
 	return $localName;
 }
@@ -418,6 +418,7 @@ use File::Find();
 use File::Spec();
 use File::Copy();
 use File::Basename;
+use Cwd;
 
 use vars qw( @ISA );
 @ISA = qw( Archive::Zip );
@@ -1037,13 +1038,19 @@ sub addTree    # Archive::Zip::Archive
 	my $dest = shift || '';
 	my $pred = shift || sub { -r };
 	my @files;
-	File::Find::find(
-		{
-			no_chdir => 1,    # make sure that $_ is same as $File::Find::name
-			wanted => sub { push ( @files, $_ ) if &$pred },
-		},
-		$root
-	);
+	my $startDir = cwd();
+
+	# This avoids chdir'ing in Find, in a way compatible with older
+	# versions of File::Find.
+	my $wanted = sub {
+		local $main::_ = $File::Find::name;
+		my $dir = $File::Find::dir;
+		chdir($startDir);
+		push ( @files, $File::Find::name ) if (&$pred);
+		chdir($dir);
+	};
+
+	File::Find::find( $wanted, $root );
 
 	my $rootZipName =
 	  Archive::Zip::_asZipDirName( $root, 1 );    # with trailing slash
@@ -1053,10 +1060,10 @@ sub addTree    # Archive::Zip::Archive
 
 	foreach my $fileName (@files)
 	{
-		my $isDir       = -d $fileName;
-		my $archiveName =
-		  Archive::Zip::_asZipDirName( $fileName, $isDir )
-		  ;    # normalize, remove leading ./
+		my $isDir = -d $fileName;
+
+		# normalize, remove leading ./
+		my $archiveName = Archive::Zip::_asZipDirName( $fileName, $isDir );
 		if ( $archiveName eq $rootZipName ) { $archiveName = $dest }
 		else { $archiveName =~ s{$pattern}{$dest} }
 		next if $archiveName =~ m{^\.?/?$};    # skip current dir
@@ -1084,17 +1091,17 @@ sub addTreeMatching    # Archive::Zip::Archive
 	return $self->addTree( $root, $dest, $matcher );
 }
 
+# $zip->extractTree( $root, $dest [, $volume] );
+#
+# $root and $dest are Unix-style.
+# $volume is in local FS format.
+#
 sub extractTree    # Archive::Zip::Archive
 {
 	my $self = shift ();
-	my $root = shift () || '';
-	$root =
-	  Archive::Zip::_asZipDirName( $root, 1 );    # with trailing slash, no vol
-	my $dest = shift || '.';
-	my $volume;
-	$dest =
-	  Archive::Zip::_asZipDirName( $dest, 1, \$volume )
-	  ;    # Unix, with trailing slash
+	my $root = shift () || '';	# Zip format
+	my $dest = shift || '.';	# Zip format
+	my $volume = shift;			# optional
 	my $pattern = qr{^\Q$root};
 	my @members = $self->membersMatching($pattern);
 	my $slash   = qr{/};
@@ -1104,7 +1111,7 @@ sub extractTree    # Archive::Zip::Archive
 		my $fileName = $member->fileName();    # in Unix format
 		$fileName =~ s{$pattern}{$dest};       # in Unix format
 		                                       # convert to platform format:
-		$fileName = Archive::Zip::_asLocalName($fileName);
+		$fileName = Archive::Zip::_asLocalName($fileName, $volume);
 		my $status = $member->extractToFileNamed($fileName);
 		return $status if $status != AZ_OK;
 	}

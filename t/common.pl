@@ -65,7 +65,7 @@ sub testCat
 
 BEGIN {
 	$catWorks = testCat();
-	warn(CAT, " doesn't seem to work") if ! $catWorks;
+	warn('warning: ', CAT, " doesn't seem to work, may skip some tests") if ! $catWorks;
 }
 
 #--------- check to see if zip works (and make INPUTZIP)
@@ -75,7 +75,7 @@ BEGIN {
 	my $cmd = ZIP . INPUTZIP . ' *' . ($^O eq 'MSWin32' ? '': ' 2>&1');
 	my $zipout = `$cmd`;
 	$zipWorks = not $?;
-	warn(ZIP, " doesn't seem to work") if not $zipWorks;
+	warn('warning: ', ZIP, " doesn't seem to work, may skip some tests") if not $zipWorks;
 }
 
 #--------- check to see if unzip -t works
@@ -84,7 +84,7 @@ BEGIN {
 	$testZipDoesntWork = 0;
 	my ($status, $zipout) = testZip(INPUTZIP);
 	$testZipDoesntWork = $status;
-	warn(ZIPTEST, " doesn't seem to work") if $testZipDoesntWork;
+	warn('warning: ', ZIPTEST, " doesn't seem to work, may skip some tests") if $testZipDoesntWork;
 }
 
 1;
