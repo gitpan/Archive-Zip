@@ -1,4 +1,17 @@
 Revision history for Perl extension Archive::Zip.
+0.11 Tue Jan  9 11:40:10 PST 2001
+  - Added examples/ziprecent.pl (by Rudi Farkas)
+  - Fixed up documentation in Archive::Zip::Tree
+  - Added to documentation in Archive::Zip::Tree
+  - Fixed bugs in Archive::Zip::Tree that kept predicates from working
+  - Detected file not existing errors in addFile
+
+0.10 Tue Aug  8 13:50:19 PDT 2000
+  - Several bug fixes
+  - More robust new file handle logic can (again)
+    take opened file handles
+  - Detect attempts to overwrite zip file when members
+    depend on it
 
 0.09 Tue May  9 13:27:35 PDT 2000
   - Added fix for bug in contents()

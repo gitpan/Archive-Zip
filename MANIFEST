@@ -14,6 +14,7 @@ examples/mfh.pl             demo for use of MockFileHandle
 examples/zip.pl             Constructs a zip file
 examples/zipinfo.pl         Prints out information about a ZIP archive file
 examples/ziptest.pl         Lists a ZIP file and checks member CRCs
+examples/ziprecent.pl       Puts recent files into a zipfile
 lib/Archive/Zip.pm          The Archive::Zip module itself
 lib/Archive/Zip/Tree.pm     Support for hierarchical operations
 lib/Archive/Zip/BufferedFileHandle.pm   To be used to write ZIP files to strings

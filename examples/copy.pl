@@ -1,7 +1,7 @@
 # Copies a zip file to another.
 # Usage:
 # perl copy.pl input.zip output.zip
-# $Revision: 1.3 $
+# $Revision: 1.4 $
 
 use Archive::Zip qw(:ERROR_CODES);
 
@@ -14,4 +14,4 @@ my $status = $zip->read($ARGV[0]);
 die("read $ARGV[0] failed: $status\n") if $status != AZ_OK;
 
 $status = $zip->writeToFileNamed($ARGV[1]);
-die("writeToFile $ARGV[1] failed: $status\n") if $status != AZ_OK;
+die("writeToFileNamed $ARGV[1] failed: $status\n") if $status != AZ_OK;

@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.36 $
+# $Revision: 1.39 $
 
 # Copyright (c) 2000 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms
@@ -27,7 +27,7 @@ Archive::Zip - Provide an interface to ZIP archive files.
  $member = $zip->memberNamed( 'stringMember.txt' );
  $member->desiredCompressionMethod( COMPRESSION_STORED );
 
- die 'write error' if $zip->writeToFileNamed( 'someZip.zip' ) != AZ_OK;
+ die 'write error' if $zip->writeToFileNamed( 'someOtherZip.zip' ) != AZ_OK;
 
 =head1 DESCRIPTION
 
@@ -137,7 +137,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "0.10";
+	$VERSION = "0.11";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -1024,8 +1024,11 @@ sub addFile	# Archive::Zip::Archive
 	my $fileName = shift;
 	my $newName = shift;
 	my $newMember = $self->ZIPMEMBERCLASS->newFromFile( $fileName );
-	$self->addMember( $newMember );
-	$newMember->fileName( $newName ) if defined( $newName );
+	if (defined($newMember))
+	{
+		$self->addMember( $newMember );
+		$newMember->fileName( $newName ) if defined( $newName );
+	}
 	return $newMember;
 }
 
