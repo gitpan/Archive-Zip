@@ -2,8 +2,7 @@
 =head1 NAME
 
 
-Archive::Zip::FAQ - Answers to a few frequently asked questions about
-Archive::Zip
+Archive::Zip::FAQ - Answers to a few frequently asked questions about Archive::Zip
 
 =head1 DESCRIPTION
 
@@ -28,17 +27,15 @@ B<Q:> Archive::Zip won't install on my RedHat 9 system! It's broke!
 
 
 B<A:> This has become something of a FAQ.
-Basically, RedHat broke Perl by setting LANG to UTF8
-They apparently have a fixed version in RawHide.
+Basically, RedHat broke some versions of Perl by setting LANG to UTF8.
+They apparently have a fixed version out as an update.
 
-You 
-might try running CPAN or creating your Makefile after exporting the 
-LANG environment variable 
-as
+You might try running CPAN or creating your Makefile after exporting the LANG
+environment variable as
 
-LANG=C
+C<LANG=C>
 
-https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=87682
+L<https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=87682>
 
 
 =head1 Why is my zip file so big?
@@ -68,6 +65,14 @@ members without much entropy won't compress well.  Instead, if you've
 got lots of repeated strings in your data, try to combine them into
 one big member.
 
+
+=item Make sure that you are requesting COMPRESSION_STORED if you are storing things that are already compressed.
+
+
+
+If you're storing a .zip, .jpg, .mp3, or other compressed file in a zip,
+then don't compress them again. They'll get bigger.
+
 =back
 
 =head1 Sample code?
@@ -80,67 +85,79 @@ B<A:> Have you looked in the C<examples/> directory yet? It contains:
 
 =over 4
 
-=item examples/calcSizes.pl -- How to find out how big a Zip file will be before writing it
+=item examples/calcSizes.pl    -- How to find out how big a Zip file will be before writing it
 
 
 
-=item examples/copy.pl -- Copies one Zip file to another
+=item examples/copy.pl         -- Copies one Zip file to another
 
 
 
-=item examples/extract.pl -- extract file(s) from a Zip
+=item examples/extract.pl      -- extract file(s) from a Zip
 
 
 
-=item examples/mfh.pl -- demo for use of MockFileHandle
+=item examples/mailZip.pl      -- make and mail a zip file
 
 
 
-=item examples/readScalar.pl -- shows how to use IO::Scalar as the source of a Zip read
+=item examples/mfh.pl          -- demo for use of MockFileHandle
 
 
 
-=item examples/selfex.pl -- a brief example of a self-extracting Zip
+=item examples/readScalar.pl   -- shows how to use IO::Scalar as the source of a Zip read
 
 
 
-=item examples/unzipAll.pl -- uses tree operations to unzip an entire Zip
+=item examples/selfex.pl       -- a brief example of a self-extracting Zip
 
 
 
-=item examples/updateZip.pl -- shows how to read/modify/write a Zip
+=item examples/unzipAll.pl     -- uses Archive::Zip::Tree to unzip an entire Zip
 
 
 
-=item examples/writeScalar.pl -- shows how to use IO::Scalar as the destination of a Zip write
+=item examples/updateZip.pl    -- shows how to read/modify/write a Zip
 
 
 
-=item examples/zip.pl -- Constructs a Zip file
+=item examples/updateTree.pl   -- shows how to update a Zip in place
 
 
 
-=item examples/zipcheck.pl -- One way to check a Zip file for validity
+=item examples/writeScalar.pl  -- shows how to use IO::Scalar as the destination of a Zip write
 
 
 
-=item examples/zipinfo.pl -- Prints out information about a Zip archive file
+=item examples/writeScalar2.pl -- shows how to use IO::String as the destination of a Zip write
 
 
 
-=item examples/zipGrep.pl -- Searches for text in Zip files
+=item examples/zip.pl          -- Constructs a Zip file
 
 
 
-=item examples/ziptest.pl -- Lists a Zip file and checks member CRCs
+=item examples/zipcheck.pl     -- One way to check a Zip file for validity
 
 
 
-=item examples/ziprecent.pl -- Puts recent files into a zipfile
+=item examples/zipinfo.pl      -- Prints out information about a Zip archive file
 
 
 
-=item examples/ziptest.pl -- Another way to check a Zip file for validity
+=item examples/zipGrep.pl      -- Searches for text in Zip files
+
+
+
+=item examples/ziptest.pl      -- Lists a Zip file and checks member CRCs
+
+
+
+=item examples/ziprecent.pl    -- Puts recent files into a zipfile
+
+
+
+=item examples/ziptest.pl      -- Another way to check a Zip file for validity
 
 
 
@@ -163,8 +180,8 @@ rename the temporary file to have the old name (possibly after deleting the
 old one).
 
 
-Archive::Zip v1.02 added the archive methods overwrite() and overwriteAs() to
-do this simply and carefully.
+Archive::Zip v1.02 added the archive methods C<overwrite()> and
+C<overwriteAs()> to do this simply and carefully.
 
 
 See C<examples/updateZip.pl> for an example of this technique.
@@ -178,7 +195,7 @@ the same time. Why?
 
 
 B<A:> Mostly because Perl doesn't give cross-platform access to I<creation time>.
-Indeed, many systems don't support such a concept.
+Indeed, many systems (like Unix) don't support such a concept.
 However, if yours does, you can easily set it. Get the modification time from
 the member using C<lastModTime()>.
 
@@ -195,8 +212,8 @@ There is a distinction between Unix gzip files, and Zip archives that
 also can use the gzip compression.
 
 
-Depending on the format of the gzip file, you can use Compress::Zlib, or
-Archive::Tar to decompress it (and de-archive it in the case of Tar files).
+Depending on the format of the gzip file, you can use L<Compress::Zlib>, or
+L<Archive::Tar> to decompress it (and de-archive it in the case of Tar files).
 
 
 You can unzip PKZIP/WinZip/etc/ archives using Archive::Zip (that's what 
@@ -240,6 +257,15 @@ B<A:> You can use the Archive::Zip::extractTree() method:
    # now extract the same files into /tmpx
    $zip->extractTree( 'stuff', '/tmpx' );
 
+=head1 Update a directory/tree
+
+
+B<Q:> How can I update a Zip from a directory tree, adding or replacing only
+the newer files?
+
+
+B<A:> You can use the Archive::Zip::updateTree() method that was added in version 1.09.
+
 =head1 Zip times might be off by 1 second
 
 
@@ -278,7 +304,7 @@ platform (the one for which the stub was compiled).
 
 
 B<Q:> How can I tell if a Zip has been damaged by adding garbage to the
-beginning?
+beginning or inside the file?
 
 
 B<A:> I added code for this for the Amavis virus scanner. You can query archives
@@ -286,7 +312,11 @@ for their 'eocdOffset' property, which should be 0:
 
 
   if ($zip->eocdOffset > 0)
-    { warn($zip->eocdOffset . " bytes of garbage at beginning of Zip") }
+    { warn($zip->eocdOffset . " bytes of garbage at beginning or within Zip") }
+
+
+When members are extracted, this offset will be used to adjust the start of
+the member if necessary.
 
 =head1 Can't extract Shrunk files
 
@@ -382,7 +412,7 @@ B<A:> There is no standard way to represent these in the Zip file format. If
 you want to send me code to properly handle the various extra fields that
 have been used to represent these through the years, I'll look at it.
 
-=head1 I can't compile but AS only has an old version of Archive::Zip
+=head1 I can't compile but ActiveState only has an old version of Archive::Zip
 
 
 B<Q:> I've only installed modules using ActiveState's PPM program and

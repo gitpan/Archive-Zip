@@ -12,11 +12,13 @@ docs/ideas.txt              Misc ideas for extra field extension
 examples/calcSizes.pl       How to find out how big a Zip file will be before writing it
 examples/copy.pl            Copies one Zip file to another
 examples/extract.pl         extract file(s) from a Zip
+examples/mailZip.pl         make and mail a zip file
 examples/mfh.pl             demo for use of MockFileHandle
 examples/readScalar.pl      shows how to use IO::Scalar as the source of a Zip read
 examples/selfex.pl          a brief example of a self-extracting Zip
 examples/unzipAll.pl        uses Archive::Zip::Tree to unzip an entire Zip
 examples/updateZip.pl       shows how to read/modify/write a Zip
+examples/updateTree.pl      shows how to update a Zip in place
 examples/writeScalar.pl     shows how to use IO::Scalar as the destination of a Zip write
 examples/writeScalar2.pl    shows how to use IO::String as the destination of a Zip write
 examples/zip.pl             Constructs a Zip file
@@ -36,7 +38,8 @@ lib/Archive/Zip/MockFileHandle.pm   To be used to write Zip files to whatever
 t/common.pl                 Common bits used by test programs
 t/test.t                    Regression test program
 t/testex.t                  Tests the examples
-t/testTree.t                Tests Archive::Zip::Tree
+t/testTree.t                Tests tree features
+t/testUpdate.t              Tests updating features
 t/testMemberRead.t          Tests Archive::Zip::MemberRead
 crc32                       Utility program to print out file CRC's
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                    Module meta-data (added by MakeMaker)

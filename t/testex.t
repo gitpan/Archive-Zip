@@ -1,5 +1,5 @@
 # Test examples
-# $Revision: 1.6 $
+# $Revision: 1.9 $
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl t/testex.t'
 # vim: ts=4 sw=4 ft=perl
@@ -12,15 +12,15 @@ use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use File::Spec;
 use IO::File;
 
-BEGIN { plan tests => 11, todo => [] }
+BEGIN { plan tests => 15, todo => [] }
 
 BEGIN { require 't/common.pl' }
 
 sub runPerlCommand
 {
 	my $libs = join ( ' -I', @INC );
-	my $cmd    = "$^X -I$libs -w @_";
-	my $output = qx($cmd);
+	my $cmd    = "\"$^X\" \"-I$libs\" -w \"". join('" "', @_). '"';
+	my $output = `$cmd`;
 	return wantarray ? ( $?, $output ) : $?;
 }
 
@@ -76,3 +76,10 @@ ok( -f $fn, 1, "$fn exists" );
 # writeScalar.pl
 # zipcheck.pl
 # ziprecent.pl
+
+unlink(OUTPUTZIP);
+ok( runPerlCommand( 'examples/updateTree.pl', OUTPUTZIP, TESTDIR ), 0, "updateTree.pl create" );
+ok( -f OUTPUTZIP, 1, "zip created" );
+ok( runPerlCommand( 'examples/updateTree.pl', OUTPUTZIP, TESTDIR ), 0, "updateTree.pl update" );
+ok( -f OUTPUTZIP, 1, "zip updated" );
+unlink(OUTPUTZIP);

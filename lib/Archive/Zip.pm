@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.86 $
+# $Revision: 1.88 $
 
 # Copyright (c) 2000-2002 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms as
@@ -39,7 +39,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.08";
+	$VERSION = "1.09";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -51,8 +51,8 @@ BEGIN
 
 	my @MiscConstantNames = qw( FA_AMIGA FA_VAX_VMS FA_VM_CMS FA_ATARI_ST
 	  FA_OS2_HPFS FA_MACINTOSH FA_Z_SYSTEM FA_CPM FA_TOPS20
-      FA_WINDOWS_NTFS FA_QDOS FA_ACORN FA_VFAT FA_MVS FA_BEOS FA_TANDEM
-      FA_THEOS GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK
+	  FA_WINDOWS_NTFS FA_QDOS FA_ACORN FA_VFAT FA_MVS FA_BEOS FA_TANDEM
+	  FA_THEOS GPBF_IMPLODING_8K_SLIDING_DICTIONARY_MASK
 	  GPBF_IMPLODING_3_SHANNON_FANO_TREES_MASK
 	  GPBF_IS_COMPRESSED_PATCHED_DATA_MASK COMPRESSION_SHRUNK
 	  DEFLATING_COMPRESSION_NORMAL DEFLATING_COMPRESSION_MAXIMUM
@@ -74,8 +74,9 @@ BEGIN
 	  END_OF_CENTRAL_DIRECTORY_SIGNATURE_STRING END_OF_CENTRAL_DIRECTORY_FORMAT
 	  END_OF_CENTRAL_DIRECTORY_LENGTH );
 
-	my @UtilityMethodNames = qw( _error _ioError _formatError
-	  _subclassResponsibility _binmode _isSeekable _newFileHandle);
+	my @UtilityMethodNames = qw( _error _printError _ioError _formatError
+	  _subclassResponsibility _binmode _isSeekable _newFileHandle _readSignature
+	  _asZipDirName);
 
 	@EXPORT_OK   = ('computeCRC32');
 	%EXPORT_TAGS = (
@@ -243,6 +244,10 @@ sub setErrorHandler (&)    # Archive::Zip
 	return $oldErrorHandler;
 }
 
+# ----------------------------------------------------------------------
+# Private utility functions (not methods).
+# ----------------------------------------------------------------------
+
 sub _printError    # Archive::Zip
 {
 	my $string = join ( ' ', @_, "\n" );
@@ -287,9 +292,7 @@ sub _subclassResponsibility    # Archive::Zip
 sub _binmode    # Archive::Zip
 {
 	my $fh = shift;
-	return UNIVERSAL::can( $fh, 'binmode' )
-		? $fh->binmode()
-		: binmode($fh);
+	return UNIVERSAL::can( $fh, 'binmode' ) ? $fh->binmode() : binmode($fh);
 }
 
 # Attempt to guess whether file handle is seekable.
@@ -352,6 +355,44 @@ sub _newFileHandle    # Archive::Zip
 	return ( $status, $handle );
 }
 
+# Returns next signature from given file handle, leaves
+# file handle positioned afterwards.
+# In list context, returns ($status, $signature)
+# ( $status, $signature) = _readSignature( $fh, $fileName );
+
+sub _readSignature    # Archive::Zip
+{
+	my $fh                = shift;
+	my $fileName          = shift;
+	my $expectedSignature = shift;    # optional
+
+	my $signatureData;
+	my $bytesRead = $fh->read( $signatureData, SIGNATURE_LENGTH );
+	return _ioError("reading header signature")
+	  if $bytesRead != SIGNATURE_LENGTH;
+	my $signature = unpack( SIGNATURE_FORMAT, $signatureData );
+	my $status    = AZ_OK;
+
+	# compare with expected signature, if any, or any known signature.
+	if ( ( defined($expectedSignature) && $signature != $expectedSignature )
+		|| ( !defined($expectedSignature)
+			&& $signature != CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE
+			&& $signature != LOCAL_FILE_HEADER_SIGNATURE
+			&& $signature != END_OF_CENTRAL_DIRECTORY_SIGNATURE ) )
+	{
+		my $errmsg = sprintf( "bad signature: 0x%08x", $signature );
+		if ( _isSeekable($fh) )
+		{
+			$errmsg .=
+			  sprintf( " at offset %d", $fh->tell() - SIGNATURE_LENGTH );
+		}
+
+		$status = _formatError("$errmsg in file $fileName");
+	}
+
+	return ( $status, $signature );
+}
+
 # Utility method to make and open a temp file.
 # Will create $temp_dir if it doesn't exist.
 # Returns file handle and name:
@@ -363,11 +404,13 @@ BEGIN { $Archive::Zip::TempSequence = 0 }
 
 sub tempFileName    # Archive::Zip
 {
-	my $temp_dir = shift ()
-	  || ( -d '/tmp' ? '/tmp' : $ENV{TMPDIR} || $ENV{TEMP} || '.' );
+	my $temp_dir = shift;
+	$temp_dir = ( -d '/tmp' ? '/tmp' : $ENV{TMPDIR} || $ENV{TEMP} || '.' )
+	  unless defined($temp_dir);
 	unless ( -d $temp_dir )
 	{
-		mkdir($temp_dir, 0777) or die "Can't create temp directory $temp_dir\: $!\n";
+		mkdir( $temp_dir, 0777 )
+		  or die "Can't create temp directory $temp_dir\: $!\n";
 	}
 	my $base_name =
 	  sprintf( "%d-%d.%d", $$, time(), $Archive::Zip::TempSequence++ );
@@ -421,9 +464,10 @@ sub _asZipDirName    # Archive::Zip
 sub _asLocalName    # Archive::Zip
 {
 	my $name   = shift;    # zip format
-	my $volume = shift || '';    # local FS format
+	my $volume = shift;
+	$volume = '' unless defined($volume);    # local FS format
 
-	my @paths     = split ( /\//, $name );
+	my @paths = split ( /\//, $name );
 	my $filename  = pop (@paths);
 	my $localDirs = File::Spec->catdir(@paths);
 	my $localName = File::Spec->catpath( $volume, $localDirs, $filename );
@@ -581,6 +625,7 @@ sub replaceMember    # Archive::Zip::Archive
 	my ( $self, $oldMember, $newMember ) = @_;
 	$oldMember = $self->memberNamed($oldMember) unless ref($oldMember);
 	return undef unless $oldMember;
+	return undef unless $newMember;
 	my @newMembers =
 	  map { ( $_ == $oldMember ) ? $newMember : $_ } $self->members();
 	$self->{'members'} = \@newMembers;
@@ -626,7 +671,7 @@ sub extractMemberWithoutPaths    # Archive::Zip::Archive
 	unless ($name)
 	{
 		$name = $member->fileName();
-		$name =~ s{.*/}{}; # strip off directories, if any
+		$name =~ s{.*/}{};    # strip off directories, if any
 		$name = Archive::Zip::_asLocalName($name);
 	}
 	return $member->extractToFileNamed( $name, @_ );
@@ -659,7 +704,7 @@ sub addString    # Archive::Zip::Archive
 sub addDirectory    # Archive::Zip::Archive
 {
 	my ( $self, $name, $newName ) = @_;
-	my $newMember = $self->ZIPMEMBERCLASS->newDirectoryNamed($name, $newName);
+	my $newMember = $self->ZIPMEMBERCLASS->newDirectoryNamed( $name, $newName );
 	$self->addMember($newMember);
 	return $newMember;
 }
@@ -696,7 +741,7 @@ sub contents    # Archive::Zip::Archive
 sub writeToFileNamed    # Archive::Zip::Archive
 {
 	my $self     = shift;
-	my $fileName = shift;	# local FS format
+	my $fileName = shift;    # local FS format
 	foreach my $member ( $self->members() )
 	{
 		if ( $member->_usesFileNamed($fileName) )
@@ -755,7 +800,8 @@ sub overwrite    # Archive::Zip::Archive
 sub overwriteAs    # Archive::Zip::Archive
 {
 	my $self    = shift;
-	my $zipName = shift || return _error("no filename in overwriteAs()");
+	my $zipName = shift;
+	return _error("no filename in overwriteAs()") unless defined($zipName);
 
 	my ( $fh, $tempName ) = Archive::Zip::tempFile();
 	return _error( "Can't open temp file", $! ) unless $fh;
@@ -799,40 +845,6 @@ sub overwriteAs    # Archive::Zip::Archive
 		_printError("Can't write to $tempName");
 		return $status;
 	}
-}
-
-# Returns next signature from given file handle, leaves
-# file handle positioned afterwards.
-# In list context, returns ($status, $signature)
-
-sub _readSignature    # Archive::Zip::Archive
-{
-	my $self     = shift;
-	my $fh       = shift;
-	my $fileName = shift;
-	my $signatureData;
-	my $bytesRead = $fh->read( $signatureData, SIGNATURE_LENGTH );
-	if ( $bytesRead != SIGNATURE_LENGTH )
-	{
-		return _ioError("reading header signature");
-	}
-	my $signature = unpack( SIGNATURE_FORMAT, $signatureData );
-	my $status    = AZ_OK;
-	if ( $signature != CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE
-		and $signature != LOCAL_FILE_HEADER_SIGNATURE
-		and $signature != END_OF_CENTRAL_DIRECTORY_SIGNATURE )
-	{
-		my $errmsg = sprintf( "bad signature: 0x%08x", $signature );
-		if ( _isSeekable( $fh ) )
-		{
-			$errmsg .=
-			  sprintf( " at offset %d", $fh->tell() - SIGNATURE_LENGTH );
-		}
-
-		$status = _formatError("$errmsg in file $fileName");
-	}
-
-	return ( $status, $signature );
 }
 
 # Used only during writing
@@ -919,9 +931,10 @@ sub read    # Archive::Zip::Archive
 
 sub readFromFileHandle    # Archive::Zip::Archive
 {
-	my $self     = shift ();
-	my $fh       = shift ();
-	my $fileName = shift () || $fh;
+	my $self     = shift;
+	my $fh       = shift;
+	my $fileName = shift;
+	$fileName = $fh unless defined($fileName);
 	return _error('No filehandle given')   unless $fh;
 	return _ioError('filehandle not open') unless $fh->opened();
 
@@ -948,9 +961,10 @@ sub readFromFileHandle    # Archive::Zip::Archive
 	for ( ; ; )
 	{
 		my $newMember =
-		  $self->ZIPMEMBERCLASS->_newFromZipFile( $fh, $fileName );
+		  $self->ZIPMEMBERCLASS->_newFromZipFile( $fh, $fileName,
+			$self->eocdOffset() );
 		my $signature;
-		( $status, $signature ) = $self->_readSignature( $fh, $fileName );
+		( $status, $signature ) = _readSignature( $fh, $fileName );
 		return $status if $status != AZ_OK;
 		last if $signature == END_OF_CENTRAL_DIRECTORY_SIGNATURE;
 		$status = $newMember->_readCentralDirectoryFileHeader();
@@ -958,7 +972,6 @@ sub readFromFileHandle    # Archive::Zip::Archive
 		$status = $newMember->endRead();
 		return $status if $status != AZ_OK;
 		$newMember->_becomeDirectoryIfNecessary();
-		$newMember->{'localHeaderRelativeOffset'} += $self->{'eocdOffset'};
 		push ( @{ $self->{'members'} }, $newMember );
 	}
 
@@ -1061,7 +1074,8 @@ sub addTree    # Archive::Zip::Archive
 {
 	my $self = shift;
 	my $root = shift or return _error("root arg missing in call to addTree()");
-	my $dest = shift || '';
+	my $dest = shift;
+	$dest = '' unless defined($dest);
 	my $pred = shift || sub { -r };
 	my @files;
 	my $startDir = cwd();
@@ -1078,18 +1092,17 @@ sub addTree    # Archive::Zip::Archive
 
 	File::Find::find( $wanted, $root );
 
-	my $rootZipName =
-	  Archive::Zip::_asZipDirName( $root, 1 );    # with trailing slash
+	my $rootZipName = _asZipDirName( $root, 1 );    # with trailing slash
 	my $pattern = $rootZipName eq './' ? '^' : "^\Q$rootZipName\E";
 
-	$dest = Archive::Zip::_asZipDirName( $dest, 1 );    # with trailing slash
+	$dest = _asZipDirName( $dest, 1 );              # with trailing slash
 
 	foreach my $fileName (@files)
 	{
 		my $isDir = -d $fileName;
 
 		# normalize, remove leading ./
-		my $archiveName = Archive::Zip::_asZipDirName( $fileName, $isDir );
+		my $archiveName = _asZipDirName( $fileName, $isDir );
 		if ( $archiveName eq $rootZipName ) { $archiveName = $dest }
 		else { $archiveName =~ s{$pattern}{$dest} }
 		next if $archiveName =~ m{^\.?/?$};    # skip current dir
@@ -1107,7 +1120,8 @@ sub addTreeMatching    # Archive::Zip::Archive
 	my $self = shift;
 	my $root = shift
 	  or return _error("root arg missing in call to addTreeMatching()");
-	my $dest = shift || '';
+	my $dest = shift;
+	$dest = '' unless defined($dest);
 	my $pattern = shift
 	  or return _error("pattern missing in call to addTreeMatching()");
 	my $pred    = shift;
@@ -1123,10 +1137,12 @@ sub addTreeMatching    # Archive::Zip::Archive
 #
 sub extractTree    # Archive::Zip::Archive
 {
-	my $self = shift ();
-	my $root = shift () || '';	# Zip format
-	my $dest = shift || './';	# Zip format
-	my $volume = shift;			# optional
+	my $self = shift;
+	my $root = shift;    # Zip format
+	$root = '' unless defined($root);
+	my $dest = shift;    # Zip format
+	$dest = './' unless defined($dest);
+	my $volume  = shift;                              # optional
 	my $pattern = "^\Q$root";
 	my @members = $self->membersMatching($pattern);
 
@@ -1135,10 +1151,149 @@ sub extractTree    # Archive::Zip::Archive
 		my $fileName = $member->fileName();    # in Unix format
 		$fileName =~ s{$pattern}{$dest};       # in Unix format
 		                                       # convert to platform format:
-		$fileName = Archive::Zip::_asLocalName($fileName, $volume);
+		$fileName = Archive::Zip::_asLocalName( $fileName, $volume );
 		my $status = $member->extractToFileNamed($fileName);
 		return $status if $status != AZ_OK;
 	}
+	return AZ_OK;
+}
+
+# $zip->updateMember( $memberOrName, $fileName );
+# Returns (possibly updated) member, if any; undef on errors.
+
+sub updateMember    # Archive::Zip::Archive
+{
+	my $self      = shift;
+	my $oldMember = shift;
+	my $fileName  = shift;
+
+	if ( !defined($fileName) )
+	{
+		_error("updateMember(): missing fileName argument");
+		return undef;
+	}
+
+	my @newStat = stat($fileName);
+	if ( !@newStat )
+	{
+		_ioError("Can't stat $fileName");
+		return undef;
+	}
+
+	my $isDir = -d _;
+
+	my $memberName;
+
+	if ( ref($oldMember) )
+	{
+		$memberName = $oldMember->fileName();
+	}
+	else
+	{
+		$oldMember = $self->memberNamed( $memberName = $oldMember )
+		  || $self->memberNamed( $memberName =
+			_asZipDirName( $oldMember, $isDir ) );
+	}
+
+	unless ( defined($oldMember)
+		&& $oldMember->lastModTime() == $newStat[9]
+		&& $oldMember->isDirectory() == $isDir
+		&& ( $isDir || ( $oldMember->uncompressedSize() == $newStat[7] ) ) )
+	{
+
+		# create the new member
+		my $newMember = $isDir
+		  ? $self->ZIPMEMBERCLASS->newDirectoryNamed( $fileName, $memberName )
+		  : $self->ZIPMEMBERCLASS->newFromFile( $fileName, $memberName );
+
+		unless ( defined($newMember) )
+		{
+			_error("creation of member $fileName failed in updateMember()");
+			return undef;
+		}
+
+		# replace old member or append new one
+		if ( defined($oldMember) )
+		{
+			$self->replaceMember( $oldMember, $newMember );
+		}
+		else { $self->addMember($newMember); }
+
+		return $newMember;
+	}
+
+	return $oldMember;
+}
+
+# $zip->updateTree( $root, [ $dest, [ $pred [, $mirror]]] );
+#
+# This takes the same arguments as addTree, but first checks to see
+# whether the file or directory already exists in the zip file.
+#
+# If the fourth argument $mirror is true, then delete all my members
+# if corresponding files weren't found.
+
+sub updateTree    # Archive::Zip::Archive
+{
+	my $self = shift;
+	my $root = shift
+	  or return _error("root arg missing in call to updateTree()");
+	my $dest = shift;
+	$dest = '' unless defined($dest);
+	$dest = _asZipDirName( $dest, 1 );
+	my $pred = shift || sub { -r };
+	my $mirror = shift;
+
+	my $rootZipName = _asZipDirName( $root, 1 );    # with trailing slash
+	my $pattern = $rootZipName eq './' ? '^' : "^\Q$rootZipName\E";
+
+	my $startDir = cwd();
+	my @files;
+
+	# This avoids chdir'ing in Find, in a way compatible with older
+	# versions of File::Find.
+	my $wanted = sub {
+		local $main::_ = $File::Find::name;
+		my $dir = $File::Find::dir;
+		chdir($startDir);
+		push ( @files, $File::Find::name ) if (&$pred);
+		chdir($dir);
+	};
+
+	File::Find::find( $wanted, $root );
+
+	# Now @files has all the files that I could potentially be adding to
+	# the zip. Only add the ones that are necessary.
+	# For each file (updated or not), add its member name to @done.
+	my %done;
+	foreach my $fileName (@files)
+	{
+		my @newStat = stat($fileName);
+		my $isDir   = -d _;
+
+		# normalize, remove leading ./
+		my $memberName = _asZipDirName( $fileName, $isDir );
+		if ( $memberName eq $rootZipName ) { $memberName = $dest }
+		else { $memberName =~ s{$pattern}{$dest} }
+		next if $memberName =~ m{^\.?/?$};    # skip current dir
+
+		$done{$memberName} = 1;
+		my $changedMember = $self->updateMember( $memberName, $fileName );
+		return _error("updateTree failed to update $fileName")
+		  unless ref($changedMember);
+	}
+
+	# @done now has the archive names corresponding to all the found files.
+	# If we're mirroring, delete all those members that aren't in @done.
+	if ($mirror)
+	{
+		foreach my $member ( $self->members() )
+		{
+			$self->removeMember($member)
+			  unless $done{ $member->fileName() };
+		}
+	}
+
 	return AZ_OK;
 }
 
@@ -1152,8 +1307,8 @@ use vars qw( @ISA );
 
 BEGIN
 {
-	use Archive::Zip qw( :CONSTANTS :MISC_CONSTANTS :ERROR_CODES 
-      :PKZIP_CONSTANTS :UTILITY_METHODS );
+	use Archive::Zip qw( :CONSTANTS :MISC_CONSTANTS :ERROR_CODES
+	  :PKZIP_CONSTANTS :UTILITY_METHODS );
 }
 
 use Time::Local();
@@ -1323,7 +1478,7 @@ sub fileName    # Archive::Zip::Member
 sub lastModFileDateTime    # Archive::Zip::Member
 {
 	my $modTime = shift->{'lastModFileDateTime'};
-	$modTime =~ m/^(\d+)$/;	# untaint
+	$modTime =~ m/^(\d+)$/;    # untaint
 	return $1;
 }
 
@@ -1352,7 +1507,8 @@ sub setLastModFileDateTimeFromUnix    # Archive::Zip::Member
 # NOT AN OBJECT METHOD!
 sub _dosToUnixTime    # Archive::Zip::Member
 {
-	my $dt = shift || return time();
+	my $dt = shift;
+	return time() unless defined($dt);
 
 	my $year = ( ( $dt >> 25 ) & 0x7f ) + 80;
 	my $mon  = ( ( $dt >> 21 ) & 0x0f ) - 1;
@@ -1363,9 +1519,8 @@ sub _dosToUnixTime    # Archive::Zip::Member
 	my $sec  = ( ( $dt << 1 ) & 0x3e );
 
 	# catch errors
-	my $time_t = eval {
-	  Time::Local::timelocal( $sec, $min, $hour, $mday, $mon, $year );
-  	};
+	my $time_t =
+	  eval { Time::Local::timelocal( $sec, $min, $hour, $mday, $mon, $year ); };
 	return time() if ($@);
 	return $time_t;
 }
@@ -1441,7 +1596,7 @@ sub _mapPermissionsToUnix    # Archive::Zip::Member
 		$mode = $attribs >> 16;
 		return $mode if $mode != 0 or not $self->localExtraField;
 
-		warn "local extra field is: ", $self->localExtraField, "\n";
+		# warn("local extra field is: ", $self->localExtraField, "\n");
 
 		# XXX This condition is not implemented
 		# I'm just including the comments from the info-zip section for now.
@@ -1973,22 +2128,24 @@ sub rewindData    # Archive::Zip::Member
 	{
 		( $self->{'deflater'}, $status ) = Compress::Zlib::deflateInit(
 			'-Level'      => $self->desiredCompressionLevel(),
-			'-WindowBits' => -MAX_WBITS(),                     # necessary magic
-#			'-Bufsize'    => $Archive::Zip::ChunkSize,
+			'-WindowBits' => -MAX_WBITS(),  # necessary magic
+			#			'-Bufsize'    => $Archive::Zip::ChunkSize,
 			@_
 		);    # pass additional options
-		return _error( 'deflateInit error:', $status ) unless $status == Z_OK;
+		return _error( 'deflateInit error:', $status )
+		  unless $status == Z_OK;
 		$self->{'chunkHandler'} = $self->can('_deflateChunk');
 	}
 	elsif ( $self->compressionMethod() == COMPRESSION_DEFLATED
 		and $self->desiredCompressionMethod() == COMPRESSION_STORED )
 	{
 		( $self->{'inflater'}, $status ) = Compress::Zlib::inflateInit(
-			'-WindowBits' => -MAX_WBITS(),               # necessary magic
-#			'-Bufsize'    => $Archive::Zip::ChunkSize,
+			'-WindowBits' => -MAX_WBITS(),    # necessary magic
+			#			'-Bufsize'    => $Archive::Zip::ChunkSize,
 			@_
 		);    # pass additional options
-		return _error( 'inflateInit error:', $status ) unless $status == Z_OK;
+		return _error( 'inflateInit error:', $status )
+		  unless $status == Z_OK;
 		$self->{'chunkHandler'} = $self->can('_inflateChunk');
 	}
 	elsif ( $self->compressionMethod() == $self->desiredCompressionMethod() )
@@ -2094,7 +2251,8 @@ sub _writeToFileHandle    # Archive::Zip::Member
 	my $fhIsSeekable = shift;
 	my $offset       = shift;
 
-	return _error("no member name given for $self") unless $self->fileName();
+	return _error("no member name given for $self")
+	  unless $self->fileName();
 
 	$self->{'writeLocalHeaderRelativeOffset'} = $offset;
 	$self->{'wasWritten'}                     = 0;
@@ -2186,7 +2344,7 @@ sub _newNamed    # Archive::Zip::DirectoryMember
 	my $class    = shift;
 	my $fileName = shift;    # FS name
 	my $newName  = shift;    # Zip name
-	$newName = Archive::Zip::_asZipDirName($fileName) unless $newName;
+	$newName = _asZipDirName($fileName) unless $newName;
 	my $self = $class->new(@_);
 	$self->{'externalFileName'} = $fileName;
 	$self->fileName($newName);
@@ -2265,7 +2423,7 @@ sub externalFileName    # Archive::Zip::FileMember
 }
 
 # Return true if I depend on the named file
-sub _usesFileNamed
+sub _usesFileNamed    # Archive::Zip::FileMember
 {
 	my $self     = shift;
 	my $fileName = shift;
@@ -2277,7 +2435,8 @@ sub _usesFileNamed
 sub fh    # Archive::Zip::FileMember
 {
 	my $self = shift;
-	$self->_openFile() if !defined( $self->{'fh'} ) || !$self->{'fh'}->opened();
+	$self->_openFile()
+	  if !defined( $self->{'fh'} ) || !$self->{'fh'}->opened();
 	return $self->{'fh'};
 }
 
@@ -2300,7 +2459,7 @@ sub _openFile    # Archive::Zip::FileMember
 sub _closeFile    # Archive::Zip::FileMember
 {
 	my $self = shift;
-	my $fh = $self->{'fh'};
+	my $fh   = $self->{'fh'};
 	$self->{'fh'} = undef;
 }
 
@@ -2337,8 +2496,9 @@ BEGIN { use Archive::Zip qw( :CONSTANTS :ERROR_CODES :UTILITY_METHODS ) }
 sub _newFromFileNamed    # Archive::Zip::NewFileMember
 {
 	my $class    = shift;
-	my $fileName = shift;	# local FS format
-	my $newName  = shift || Archive::Zip::_asZipDirName($fileName);
+	my $fileName = shift;    # local FS format
+	my $newName  = shift;
+	$newName = _asZipDirName($fileName) unless defined($newName);
 	return undef unless ( stat($fileName) && -r _ && !-d _ );
 	my $self = $class->new(@_);
 	$self->fileName($newName);
@@ -2414,28 +2574,71 @@ BEGIN
 
 # Create a new Archive::Zip::ZipFileMember
 # given a filename and optional open file handle
+# 
 sub _newFromZipFile    # Archive::Zip::ZipFileMember
 {
-	my $class            = shift;
-	my $fh               = shift;
-	my $externalFileName = shift;
-	my $self             = $class->new(
+	my $class              = shift;
+	my $fh                 = shift;
+	my $externalFileName   = shift;
+	my $possibleEocdOffset = shift;    # normally 0
+
+	my $self = $class->new(
 		'crc32'                     => 0,
 		'diskNumberStart'           => 0,
 		'localHeaderRelativeOffset' => 0,
 		'dataOffset' => 0,    # localHeaderRelativeOffset + header length
 		@_
 	);
-	$self->{'externalFileName'} = $externalFileName;
-	$self->{'fh'}               = $fh;
+	$self->{'externalFileName'}   = $externalFileName;
+	$self->{'fh'}                 = $fh;
+	$self->{'possibleEocdOffset'} = $possibleEocdOffset;
 	return $self;
 }
 
-sub isDirectory    # Archive::Zip::FileMember
+sub isDirectory    # Archive::Zip::ZipFileMember
 {
 	my $self = shift;
 	return ( substr( $self->fileName(), -1, 1 ) eq '/'
 		and $self->uncompressedSize() == 0 );
+}
+
+# Seek to the beginning of the local header, just past the signature.
+# Verify that the local header signature is in fact correct.
+# Update the localHeaderRelativeOffset if necessary by adding the possibleEocdOffset.
+# Returns status.
+
+sub _seekToLocalHeader    # Archive::Zip::ZipFileMember
+{
+	my $self  = shift;
+	my $where = shift;
+	$where = $self->localHeaderRelativeOffset() unless defined($where);
+
+	my $status;
+	my $signature;
+
+	$status = $self->fh()->seek( $where, IO::Seekable::SEEK_SET );
+	return _ioError("seeking to local header") unless $status;
+
+	( $status, $signature ) =
+	  _readSignature( $self->fh(), $self->externalFileName(),
+		LOCAL_FILE_HEADER_SIGNATURE );
+	return $status if $status == AZ_IO_ERROR;
+
+	# retry with EOCD offset if any was given.
+	if ( $status == AZ_FORMAT_ERROR && $self->{'possibleEocdOffset'} )
+	{
+		$status =
+		  $self->_seekToLocalHeader( $self->localHeaderRelativeOffset() +
+			$self->{'possibleEocdOffset'} );
+		if ( $status == AZ_OK )
+		{
+			$self->{'localHeaderRelativeOffset'} +=
+			  $self->{'possibleEocdOffset'};
+			$self->{'possibleEocdOffset'} = 0;
+		}
+	}
+
+	return $status;
 }
 
 # Because I'm going to delete the file handle, read the local file
@@ -2454,18 +2657,10 @@ sub _become    # Archive::Zip::ZipFileMember
 	if ( _isSeekable( $self->fh() ) )
 	{
 		my $here = $self->fh()->tell();
-		$status =
-		  $self->fh()
-		  ->seek( $self->localHeaderRelativeOffset() + SIGNATURE_LENGTH,
-			IO::Seekable::SEEK_SET );
-		if ( !$status )
-		{
-			$self->fh()->seek($here);
-			_ioError("seeking to local header");
-			return $self;
-		}
-		$self->_readLocalFileHeader();
+		$status = $self->_seekToLocalHeader();
+		$status = $self->_readLocalFileHeader() if $status == AZ_OK;
 		$self->fh()->seek( $here, IO::Seekable::SEEK_SET );
+		return $status unless $status == AZ_OK;
 	}
 
 	delete( $self->{'diskNumberStart'} );
@@ -2687,10 +2882,8 @@ sub rewindData    # Archive::Zip::ZipFileMember
 	# Seek to local file header.
 	# The only reason that I'm doing this this way is that the extraField
 	# length seems to be different between the CD header and the LF header.
-	$self->fh()
-	  ->seek( $self->localHeaderRelativeOffset() + SIGNATURE_LENGTH,
-		IO::Seekable::SEEK_SET )
-	  or return _ioError("seeking to local header");
+	$status = $self->_seekToLocalHeader();
+	return $status unless $status == AZ_OK;
 
 	# skip local file header
 	$status = $self->_skipLocalFileHeader();

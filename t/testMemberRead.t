@@ -1,5 +1,5 @@
 # Test Archive::Zip::MemberRead module
-# $Revision: 1.0 $
+# $Revision: 1.1 $
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl t/testMemberRead.t'
 # vim: ts=4 sw=4 ft=perl

@@ -476,15 +476,16 @@ Archive::Zip does not handle multi-volume archives.
 
 
 
-Return the number of CD structures on this disk. Not used for
-writing zips, but might be interesting if you read a zip in.
+Return the number of CD structures in the zipfile last read in.
+Not used for writing zips, but might be interesting if you read a zip
+in.
 
 =item numberOfCentralDirectories()
 
 
 
-Return the number of CD structures in the whole zip. Not used
-for writing zips, but might be interesting if you read a zip
+Return the number of CD structures in the zipfile last read in.
+Not used for writing zips, but might be interesting if you read a zip
 in.
 
 =item centralDirectorySize()
@@ -529,6 +530,9 @@ an example of how you can diagnose this:
     warn "A virus has added ", $zip->eocdOffset, " bytes of garbage\n";
   }
 
+The C<eocdOffset()> is used to adjust the starting position of member
+headers, if necessary.
+
 =item fileName()
 
 
@@ -554,7 +558,7 @@ that names be unique within a zip (this is not enforced).
 
 
 Remove and return the given member, or match its name and
-remove it. Returns undef if member name doesn't exist in this
+remove it. Returns undef if member or name doesn't exist in this
 Zip. No-op if member does not belong to this zip.
 
 =item replaceMember( $memberOrName, $newMember )
@@ -562,8 +566,12 @@ Zip. No-op if member does not belong to this zip.
 
 
 Remove and return the given member, or match its name and
-remove it. Replace with new member. Returns undef if member
-name doesn't exist in this Zip.
+remove it. Replace with new member. Returns undef if member or
+name doesn't exist in this Zip, or if C<$newMember> is undefined.
+
+
+It is an (undiagnosed) error to provide a C<$newMember> that is a
+member of the zip being modified.
 
     my $member1 = $zip->removeMember( 'xyz' );
     my $member2 = $zip->replaceMember( 'abc', $member1 );
@@ -611,6 +619,16 @@ or read() to add members.
     # Move member named 'abc' to end of zip:
     my $member = $zip->removeMember( 'abc' );
     $zip->addMember( $member );
+
+=item updateMember( $memberOrName, $fileName )
+
+
+
+Update a single member from the file or directory named C<$fileName>.
+Returns the (possibly added or updated) member, if any; C<undef> on
+errors.
+The comparison is based on C<lastModTime()> and (in the case of a
+non-directory) the size of the file.
 
 =item addFile( $fileName [, $newName ] )
 
@@ -713,7 +731,7 @@ Note that if you use the same name as an existing zip file
 that you read in, you will clobber ZipFileMembers. So
 instead, write to a different file name, then delete the
 original.
-If you use the overwrite() or overwriteAs() methods, you can
+If you use the C<overwrite()> or C<overwriteAs()> methods, you can
 re-write the original zip in this way.
 C<$fileName> should be a valid file name on your system.
 
@@ -920,6 +938,22 @@ a subdirectory named C<xyz>, do this:
 
 Returns AZ_OK on success. Note that this will not follow
 symbolic links to directories.
+
+=item $zip->updateTree( $root, [ $dest, [ $pred [, $mirror]]] );
+
+
+
+Update a zip file from a directory tree.
+
+C<updateTree()> takes the same arguments as C<addTree()>, but first
+checks to see whether the file or directory already exists in the zip
+file, and whether it has been changed.
+
+If the fourth argument C<$mirror> is true, then delete all my members
+if corresponding files weren't found.
+
+
+Returns an error code or AZ_OK of all is well.
 
 =item $zip->extractTree()
 
@@ -1489,6 +1523,48 @@ data.
 
 =back
 
+=head1 REQUIRED MODULES
+
+
+L<Archive::Zip|Archive::Zip> requires several other modules:
+
+
+L<Carp|Carp>
+
+
+L<Compress::Zlib|Compress::Zlib>
+
+
+L<Cwd|Cwd>
+
+
+L<File::Basename|File::Basename>
+
+
+L<File::Copy|File::Copy>
+
+
+L<File::Find|File::Find>
+
+
+L<File::Path|File::Path>
+
+
+L<File::Spec|File::Spec>
+
+
+L<File::Spec|File::Spec>
+
+
+L<IO::File|IO::File>
+
+
+L<IO::Seekable|IO::Seekable>
+
+
+L<Time::Local|Time::Local>
+
+
 =head1 AUTHOR
 
 
@@ -1500,14 +1576,20 @@ File attributes code by Maurice Aubrey <maurice@lovelyfilth.com>
 =head1 COPYRIGHT
 
 
-Copyright (c) 2000-2002 Ned Konz. All rights reserved. This program is free
+Copyright (c) 2000-2003 Ned Konz. All rights reserved. This program is free
 software; you can redistribute it and/or modify it under the same terms as
 Perl itself.
 
 =head1 SEE ALSO
 
 
-L<Compress::Zlib> L<Archive::Tar> There is a Japanese translation of this
-document at http://www.necoware.com/~deq/perl/doc-ja/Archive-Zip.html that
+L<Compress::Zlib>
+
+
+L<Archive::Tar>
+
+
+There is a Japanese translation of this
+document at L<http://www.necoware.com/~deq/perl/doc-ja/Archive-Zip.html> that
 was done by DEQ <deq@oct.zaq.ne.jp> . Thanks! 
 
