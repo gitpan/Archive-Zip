@@ -4,11 +4,11 @@
 # I probably should just use IO::Scalar instead.
 # Ned Konz, March 2000
 #
-# $Revision: 1.3 $
+# $Revision: 1.6 $
 
 use strict;
 package Archive::Zip::BufferedFileHandle;
-use FileHandle ();
+use IO::File;
 use Carp;
 
 sub new
@@ -28,7 +28,8 @@ sub readFromFile
 {
 	my $self = shift;
 	my $fileName = shift;
-	my $fh = FileHandle->new($fileName, "r");
+	my $fh = IO::File->new($fileName, "r");
+	CORE::binmode($fh);
 	if (! $fh)
 	{
 		Carp::carp("Can't open $fileName: $!\n");
@@ -55,6 +56,9 @@ sub binmode
 { 1 }
 
 sub close
+{ 1 }
+
+sub opened
 { 1 }
 
 sub eof

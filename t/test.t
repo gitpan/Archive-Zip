@@ -1,4 +1,4 @@
-# $Revision: 1.10 $
+# $Revision: 1.12 $
 # Before `make install' is performed this script should be runnable
 # with `make test'. After `make install' it should work as
 # `perl t/test.t'
@@ -13,7 +13,7 @@ use File::Path;
 
 BEGIN { plan tests => 123, todo => [] }
 
-BEGIN { require 't/common.pl' }
+BEGIN { require 't/common.pl' or die "Can't get t/common.pl" }
 
 my ($zip, @members, $numberOfMembers, $status, $member, $zipout,
 	$memberName, @memberNames);
@@ -41,7 +41,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status != 0);
+skip($testZipDoesntWork, $status != 0);
 # unzip -t returns error code=1 for warning on empty
 
 #--------- add a directory
@@ -69,7 +69,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- extract the directory by name
 rmtree([ TESTDIR ], 0, 0);
@@ -107,7 +107,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 ok($member->crc32(), TESTSTRINGCRC);
 
@@ -122,17 +122,17 @@ ok(fileCRC($memberName), TESTSTRINGCRC);
 #--------- now compress it and re-test
 my $oldCompressionMethod = 
 	$member->desiredCompressionMethod(COMPRESSION_DEFLATED);
-ok($oldCompressionMethod, COMPRESSION_STORED);
+ok($oldCompressionMethod, COMPRESSION_STORED, 'old compression method OK');
 
 # writeToFileNamed	# Archive::Zip::Archive
 $status = $zip->writeToFileNamed( OUTPUTZIP );
-ok($status, AZ_OK);
+ok($status, AZ_OK, 'writeToFileNamed returns AZ_OK');
 ok($member->crc32(), TESTSTRINGCRC);
 ok($member->uncompressedSize(), TESTSTRINGLENGTH);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- extract it by name
 $status = $zip->extractMember($memberName);
@@ -159,7 +159,7 @@ ok($member->uncompressedSize(), TESTSTRINGLENGTH);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- extract it by name (note we have to rename it first
 #--------- or we will clobber the original file
@@ -184,7 +184,7 @@ ok($member->uncompressedSize(), TESTSTRINGLENGTH);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- extract it by name
 $status = $zip->extractMember($memberName, $newName);
@@ -233,7 +233,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- add the string member at the end and test the file
 # addMember	# Archive::Zip::Archive
@@ -253,7 +253,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- remove the file member
 $member = $zip->removeMember($members[1]);
@@ -276,7 +276,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- add compressed file
 $member = $zip->addFile(TESTDIR . 'file.txt');
@@ -326,7 +326,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip(INPUTZIP);
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- read from INPUTZIP (appending its entries)
 # read	# Archive::Zip::Archive
@@ -355,7 +355,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- Make sure that we haven't renamed files (this happened!)
 ok(scalar($zip->membersMatching('2\.txt$')), 4);
@@ -415,7 +415,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- Change the contents of a file member
 ok(ref($members[1]), 'Archive::Zip::NewFileMember');
@@ -427,7 +427,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 #--------- Change the contents of a zip member
 
@@ -440,7 +440,7 @@ ok($status, AZ_OK);
 
 ($status, $zipout) = testZip();
 # STDERR->print("status= $status, out=$zipout\n");
-skip(! $testZipWorks, $status, 0);
+skip($testZipDoesntWork, $status, 0);
 
 
 #--------- now clean up

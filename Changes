@@ -1,4 +1,12 @@
 Revision history for Perl extension Archive::Zip.
+0.12 Wed May 23 17:48:21 PDT 2001
+  - Added writeScalar.pl and readScalar.pl to show use of IO::Scalar
+  - Fixed docs
+  - Fixed bug with EOCD signature on block boundary
+  - Made it work with IO::Scalar as file handles
+  - added readFromFileHandle()
+  - remove guess at seekability for Windows compatibility
+
 0.11 Tue Jan  9 11:40:10 PST 2001
   - Added examples/ziprecent.pl (by Rudi Farkas)
   - Fixed up documentation in Archive::Zip::Tree

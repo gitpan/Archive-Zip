@@ -5,7 +5,7 @@
 #
 # See the examples.
 #
-# $Revision: 1.2 $
+# $Revision: 1.4 $
 
 use strict;
 package Archive::Zip::MockFileHandle;
@@ -28,19 +28,11 @@ sub eof
 }
 
 # Copy given buffer to me
-sub write
+sub print
 {
 	my $self = shift;
-	my $buf = \($_[0]); shift;
-	my $len = shift;
-	my $offset = shift || 0;
-
-	$$buf = '' if not defined($$buf);
-	my $bufLen = length($$buf);
-	my $bytesWritten = ($offset + $len > $bufLen)
-		? $bufLen - $offset
-		: $len;
-	$bytesWritten = $self->writeHook(substr($$buf, $offset, $bytesWritten));
+	my $bytes = join('', @_);
+	my $bytesWritten = $self->writeHook($bytes);
 	if ($self->{'position'} + $bytesWritten > $self->{'size'})
 	{
 		$self->{'size'} = $self->{'position'} + $bytesWritten
@@ -69,6 +61,8 @@ sub clearerr { 1 }
 sub read { 0 } 
 
 sub tell { return shift->{'position'} }
+
+sub opened { 1 }
 
 # vim: ts=4 sw=4
 1;

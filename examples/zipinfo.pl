@@ -43,7 +43,9 @@ print $zipDumper->Dump(), "\n";
 my $expectedEOCDPosition = $zip->centralDirectoryOffsetWRTStartingDiskNumber()
 	+ $zip->centralDirectorySize();
 
-if ($eocdPosition != $expectedEOCDPosition)
+my $eocdOffset = $zip->{eocdOffset} = $eocdPosition - $expectedEOCDPosition;
+
+if ($eocdOffset)
 {
 	printf "Expected EOCD at %d (0x%x) but found it at %d (0x%x)\n",
 		($expectedEOCDPosition) x 2, ($eocdPosition) x 2;
@@ -54,7 +56,7 @@ else
 }
 
 my $contents = $fh->contents();
-my $offset = $eocdPosition - 1;
+my $offset = $eocdPosition + $eocdOffset - 1;
 my $cdPos;
 my @members;
 my $numberOfMembers = $zip->numberOfCentralDirectoriesOnThisDisk(); 
@@ -104,7 +106,7 @@ print "\n";
 foreach my $n (0 .. $#members)
 {
 	my $member = $members[$n];
-	$fh->seek($member->localHeaderRelativeOffset() + SIGNATURE_LENGTH, 0);
+	$fh->seek($member->localHeaderRelativeOffset() + $eocdOffset + SIGNATURE_LENGTH, 0);
 	$status = $member->_readLocalFileHeader();
 	if ($status != AZ_OK and $status != AZ_STREAM_END)
 	{

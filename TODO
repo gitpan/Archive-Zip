@@ -1,4 +1,4 @@
-$Revision: 1.9 $
+$Revision: 1.12 $
 Still to do:
 * auto-choosing storing vs compression
 * file attributes (mapping properly to MS-DOS)
@@ -6,3 +6,5 @@ Still to do:
 * check for dups on addition/renaming?
 * Text file extraction (line end translation)
 * Reading zip files from non-seekable inputs
+* separate unused constants into separate module
+* cookbook style docs

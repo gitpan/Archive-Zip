@@ -8,11 +8,16 @@ docs/Appnote.txt            PKZIP format description
 docs/Archive-Zip.pdf        Object model, PDF version
 docs/Archive-Zip.ps         Object model, Postscript version
 docs/ideas.txt              Misc ideas for extra field extension
+examples/calcSizes.pl       How to find out how big a zip file will be before writing it
 examples/copy.pl            Copies one ZIP file to another
 examples/extract.pl         extract file(s) from a zip
 examples/mfh.pl             demo for use of MockFileHandle
+examples/readScalar.pl      shows how to use IO::Scalar as the source of a zip read
+examples/unzipAll.pl        uses Archive::Zip::Tree to unzip an entire zip
+examples/writeScalar.pl     shows how to use IO::Scalar as the destination of a zip write
 examples/zip.pl             Constructs a zip file
 examples/zipinfo.pl         Prints out information about a ZIP archive file
+examples/zipGrep.pl         Searches for text in zip files
 examples/ziptest.pl         Lists a ZIP file and checks member CRCs
 examples/ziprecent.pl       Puts recent files into a zipfile
 lib/Archive/Zip.pm          The Archive::Zip module itself

@@ -16,14 +16,14 @@ use constant TESTSTRINGCRC => Archive::Zip::computeCRC32(TESTSTRING);
 use constant CAT => $^X . ' -pe "BEGIN{binmode(STDIN);binmode(STDOUT)}"';
 use constant CATPIPE => '| ' . CAT . ' >';
 
-use vars qw($zipWorks $testZipWorks $catWorks);
-local ($zipWorks, $testZipWorks, $catWorks);
+use vars qw($zipWorks $testZipDoesntWork $catWorks);
+local ($zipWorks, $testZipDoesntWork, $catWorks);
 
 # Run ZIPTEST to test a zip file.
 sub testZip
 {
 	my $zipName = shift || OUTPUTZIP;
-	if (! $testZipWorks)
+	if ($testZipDoesntWork)
 	{
 		return wantarray ? (0, '') : 0;
 	}
@@ -50,7 +50,7 @@ sub testCat
 {
 	my $fh = FileHandle->new( CATPIPE . OUTPUTZIP );
 	binmode($fh);
-	my $testString = pack('c256', 0..255);
+	my $testString = pack('C256', 0..255);
 	my $testCrc = Archive::Zip::computeCRC32($testString);
 	$fh->write($testString, length($testString)) or return 0;
 	$fh->close();
@@ -80,10 +80,10 @@ BEGIN {
 #--------- check to see if unzip -t works
 
 BEGIN {
-	$testZipWorks = 1;
+	$testZipDoesntWork = 0;
 	my ($status, $zipout) = testZip(INPUTZIP);
-	$testZipWorks = not $status;
-	warn(ZIPTEST, " doesn't seem to work") if ! $testZipWorks;
+	$testZipDoesntWork = $status;
+	warn(ZIPTEST, " doesn't seem to work") if $testZipDoesntWork;
 }
 
 1;

@@ -1,4 +1,4 @@
-# $Revision: 1.5 $
+# $Revision: 1.6 $
 package Archive::Zip::Archive;
 use File::Find ();
 use Archive::Zip qw(:ERROR_CODES :UTILITY_METHODS);
@@ -21,7 +21,7 @@ Archive::Zip::Tree -- methods for adding/extracting trees using Archive::Zip
   # add all .o files below /tmp as stuff/* if they aren't writable
   $zip->addTreeMatching( '/tmp', 'stuff', '\.o$', sub { ! -w } );
   # and write them into a file
-  $zip->writeToFile('xxx.zip');
+  $zip->writeToFileNamed('xxx.zip');
 
   # now extract the same files into /tmpx
   $zip->extractTree( 'stuff', '/tmpx' );
@@ -169,9 +169,15 @@ sub addTreeMatching
 
 =over 4
 
+=item $zip->extractTree()
+
 =item $zip->extractTree( $root, $dest )
 
-Extracts all the members below a given root. Will
+If you don't give any arguments at all, will extract all
+the files in the zip with their original names.
+
+If you give arguments, C<extractTree> extracts all the
+members below a given root. Will
 translate that root to a given dest pathname.
 
 For instance,
@@ -194,17 +200,15 @@ and ignore /d/e
 sub extractTree
 {
 	my $self = shift();
-	my $root = shift();
-	return _error("root arg missing in call to extractTree()")
-		unless defined($root);
-	my $dest = shift || '.';
+	my $root = shift() || '';
+	my $dest = shift || './';
 	$root =~ s{\\}{/}g;	# normalize backslashes in case user is misguided
 	$root =~ s{([^/])$}{$1/};	# append slash if necessary
-	my @members = $self->membersMatching( "^$root" );
+	my @members = $self->membersMatching( "^\Q$root" );
 	foreach my $member ( @members )
 	{
 		my $fileName = $member->fileName(); 
-		$fileName =~ s{$root}{$dest};
+		$fileName =~ s{^\Q$root}{$dest};
 		my $status = $member->extractToFileNamed( $fileName );
 		return $status if $status != AZ_OK;
 	}
