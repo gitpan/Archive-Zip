@@ -1,4 +1,4 @@
-# $Revision: 1.1 $
+# $Revision: 1.2 $
 package Archive::Zip::Archive;
 use File::Find ();
 use Archive::Zip qw(:ERROR_CODES :UTILITY_METHODS);

@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.32 $
+# $Revision: 1.36 $
 
 # Copyright (c) 2000 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms
@@ -137,7 +137,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "0.09";
+	$VERSION = "0.10";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -599,25 +599,44 @@ sub _binmode	# Archive::Zip
 sub _isSeekable	# Archive::Zip
 {
 	my $fh = shift;
-	my $position = -1;
+	my ($p0, $p1);
 	my $seekable = 
-		$fh->seek( -1, IO::Seekable::SEEK_CUR ) == 0
-		&& ( $position = $fh->tell() ) >= 0
-		&& $fh->seek( 1, IO::Seekable::SEEK_CUR ) == 0
-		&& $fh->tell() == $position + 1;
+		( $p0 = $fh->tell() ) >= 0
+		&& $fh->seek( 1, IO::Seekable::SEEK_CUR )
+		&& ( $p1 = $fh->tell() ) >= 0
+		&& $p1 == $p0 + 1
+		&& $fh->seek( -1, IO::Seekable::SEEK_CUR )
+		&& $fh->tell() == $p0;
 	return $seekable;
 }
 
 # Return an opened IO::Handle
 # my ( $status, fh ) = _newFileHandle( 'fileName', 'w' );
 # Can take a filename, file handle, or ref to GLOB
+# Or, if given something that is a ref but not an IO::Handle,
+# passes back the same thing.
 sub _newFileHandle	# Archive::Zip
 {
 	my $fd = shift;
+	my $status = 1;
 	my $handle = IO::File->new();
-	my $status = ref( $fd )
-		? $handle->fdopen( $fd, @_ )
-		: $handle->open( $fd, @_ );
+
+	if ( ref( $fd ) )
+	{
+		if ( $fd->isa( 'IO::Handle' ) or $fd->isa( 'GLOB' ) )
+		{
+			$status = $handle->fdopen( $fd, @_ );
+		}
+		else
+		{
+			$handle = $fd;
+		}
+	}
+	else
+	{
+		$status = $handle->open( $fd, @_ );
+	}
+
 	return ( $status, $handle );
 }
 
@@ -1086,6 +1105,11 @@ sub contents	# Archive::Zip::Archive
 Write a zip archive to named file.
 Returns C<AZ_OK> on success.
 
+Note that if you use the same name as an existing
+zip file that you read in, you will clobber ZipFileMembers.
+So instead, write to a different file name, then delete
+the original.
+
     my $status = $zip->writeToFileNamed( 'xx.zip' );
     die "error somewhere" if $status != AZ_OK;
 
@@ -1095,6 +1119,15 @@ sub writeToFileNamed	# Archive::Zip::Archive
 {
 	my $self = shift;
 	my $fileName = shift;
+	foreach my $member ( $self->members() )
+	{
+		if ( $member->_usesFileNamed( $fileName ) )
+		{
+			return _error("$fileName is needed by member " 
+					. $member->fileName() 
+					. "; try renaming output file");
+		}
+	}
 	my ( $status, $fh ) = _newFileHandle( $fileName, 'w' );
 	return _ioError( "Can't open $fileName for write" ) if !$status;
 	my $retval = $self->writeToFileHandle( $fh, 1 );
@@ -2578,7 +2611,8 @@ sub contents	# Archive::Zip::Member
 		}
 		$self->desiredCompressionMethod( $oldCompression );
 		$self->endRead();
-		$retval = undef if ( $status != AZ_OK and $status != AZ_STREAM_END );
+		$status = AZ_OK if $status == AZ_STREAM_END;
+		$retval = undef if $status != AZ_OK;
 		return wantarray ? ( $retval, $status ) : $retval;
 	}
 }
@@ -2672,6 +2706,13 @@ sub _writeData	# Archive::Zip::Member
 	return AZ_OK;
 }
 
+
+# Return true if I depend on the named file
+sub _usesFileNamed
+{
+	return 0;
+}
+
 # ----------------------------------------------------------------------
 # class Archive::Zip::DirectoryMember
 # ----------------------------------------------------------------------
@@ -2759,6 +2800,14 @@ sub externalFileName	# Archive::Zip::FileMember
 { shift->{'externalFileName'} }
 
 #--------------------------------
+
+# Return true if I depend on the named file
+sub _usesFileNamed
+{
+	my $self = shift;
+	my $fileName = shift;
+	return $self->externalFileName eq $fileName;
+}
 
 =item fh()
 
@@ -2962,7 +3011,7 @@ sub _become	# Archive::Zip::ZipFileMember
 			return $self;
 		}
 		$self->_readLocalFileHeader();
-		$self->fh()->seek( $here );
+		$self->fh()->seek( $here, IO::Seekable::SEEK_SET );
 	}
 
 	delete( $self->{'diskNumberStart'} );

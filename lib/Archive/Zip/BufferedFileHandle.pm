@@ -4,7 +4,7 @@
 # I probably should just use IO::Scalar instead.
 # Ned Konz, March 2000
 #
-# $Revision: 1.2 $
+# $Revision: 1.3 $
 
 use strict;
 package Archive::Zip::BufferedFileHandle;
@@ -119,6 +119,8 @@ sub write
 	$self->{size} = length($self->{content});
 	return $bytesWritten;
 }
+
+sub clearerr() { 1 }
 
 # vim: ts=4 sw=4
 1;

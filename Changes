@@ -2,7 +2,7 @@ Revision history for Perl extension Archive::Zip.
 
 0.09 Tue May  9 13:27:35 PDT 2000
   - Added fix for bug in contents()
-  - removed system("rm" call in t/test.t for Windows.
+  - removed system("rm") call in t/test.t for Windows.
 
 0.08 March 27 2000 (unreleased)
   - Fixed documentation
