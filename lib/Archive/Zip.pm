@@ -1,5 +1,5 @@
 #! perl -w
-# $Revision: 1.28 $
+# $Revision: 1.32 $
 
 # Copyright (c) 2000 Ned Konz. All rights reserved.  This program is free
 # software; you can redistribute it and/or modify it under the same terms
@@ -19,7 +19,7 @@ Archive::Zip - Provide an interface to ZIP archive files.
  $member->desiredCompressionMethod( COMPRESSION_DEFLATED );
  $member = $zip->addFile( 'xyz.pl', 'AnotherName.pl' );
 
- die 'write error' if $zip->writeToFile( 'someZip.zip' ) != AZ_OK;
+ die 'write error' if $zip->writeToFileNamed( 'someZip.zip' ) != AZ_OK;
 
  $zip = Archive::Zip->new();
  die 'read error' if $zip->read( 'someZip.zip' ) != AZ_OK;
@@ -27,7 +27,7 @@ Archive::Zip - Provide an interface to ZIP archive files.
  $member = $zip->memberNamed( 'stringMember.txt' );
  $member->desiredCompressionMethod( COMPRESSION_STORED );
 
- die 'write error' if $zip->writeToFile( 'someZip.zip' ) != AZ_OK;
+ die 'write error' if $zip->writeToFileNamed( 'someZip.zip' ) != AZ_OK;
 
 =head1 DESCRIPTION
 
@@ -119,7 +119,7 @@ require 5.003_96;
 use strict;
 
 use Carp ();
-use FileHandle ();
+use IO::File ();
 use IO::Seekable ();
 use Compress::Zlib ();
 
@@ -137,7 +137,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "0.07";
+	$VERSION = "0.09";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -172,7 +172,7 @@ BEGIN
 	END_OF_CENTRAL_DIRECTORY_LENGTH );
 
 	my @UtilityMethodNames = qw( _error _ioError _formatError
-		_subclassResponsibility _binmode _isSeekable );
+		_subclassResponsibility _binmode _isSeekable _newFileHandle);
 
 	@EXPORT_OK = ( 'computeCRC32' );
 	%EXPORT_TAGS = ( 'CONSTANTS' => \@ConstantNames,
@@ -586,7 +586,7 @@ sub _subclassResponsibility 	# Archive::Zip
 	Carp::croak( "subclass Responsibility\n" );
 }
 
-# Try to set the given FileHandle or object into binary mode.
+# Try to set the given file handle or object into binary mode.
 sub _binmode	# Archive::Zip
 {
 	my $fh = shift;
@@ -606,6 +606,19 @@ sub _isSeekable	# Archive::Zip
 		&& $fh->seek( 1, IO::Seekable::SEEK_CUR ) == 0
 		&& $fh->tell() == $position + 1;
 	return $seekable;
+}
+
+# Return an opened IO::Handle
+# my ( $status, fh ) = _newFileHandle( 'fileName', 'w' );
+# Can take a filename, file handle, or ref to GLOB
+sub _newFileHandle	# Archive::Zip
+{
+	my $fd = shift;
+	my $handle = IO::File->new();
+	my $status = ref( $fd )
+		? $handle->fdopen( $fd, @_ )
+		: $handle->open( $fd, @_ );
+	return ( $status, $handle );
 }
 
 =back
@@ -887,7 +900,7 @@ sub replaceMember	# Archive::Zip::Archive
 
 #--------------------------------
 
-=item extractMember( $memberOrName )
+=item extractMember( $memberOrName [, $extractedName ] )
 
 Extract the given member, or match its name and extract it.
 Returns undef if member doesn't exist in this Zip.
@@ -917,7 +930,7 @@ sub extractMember	# Archive::Zip::Archive
 
 #--------------------------------
 
-=item extractMemberWithoutPaths( $memberOrName )
+=item extractMemberWithoutPaths( $memberOrName [, $extractedName ] )
 
 Extract the given member, or match its name and extract it.
 Does not use path information (extracts into the current directory).
@@ -967,7 +980,7 @@ sub addMember	# Archive::Zip::Archive
 
 #--------------------------------
 
-=item addFile( $fileName )
+=item addFile( $fileName [, $newName ] )
 
 Append a member whose data comes from an external file,
 returning the member or undef.
@@ -981,13 +994,20 @@ undef will be returned.
 The text mode bit will be set if the contents appears to be text (as returned
 by the C<-T> perl operator).
 
+The optional second argument sets the internal file name to
+something different than the given $fileName.
+
 =cut
 
 sub addFile	# Archive::Zip::Archive
 {
 	my $self = shift;
-	my $newMember = $self->ZIPMEMBERCLASS->newFromFile( @_ );
-	return $self->addMember( $newMember );
+	my $fileName = shift;
+	my $newName = shift;
+	my $newMember = $self->ZIPMEMBERCLASS->newFromFile( $fileName );
+	$self->addMember( $newMember );
+	$newMember->fileName( $newName ) if defined( $newName );
+	return $newMember;
 }
 
 #--------------------------------
@@ -1014,13 +1034,15 @@ sub addString	# Archive::Zip::Archive
 
 #--------------------------------
 
-=item addDirectory( $directoryName )
+=item addDirectory( $directoryName [, $fileName ] )
 
 Append a member created from the given directory name.
 The directory name does not have to name an existing directory.
 If the named directory exists, the file modification time and permissions
 are set from the existing directory, otherwise they are set to now and
 permissive default permissions.
+The optional second argument sets the name of the archive member
+(which defaults to $directoryName)
 
 Returns the new member.
 
@@ -1028,9 +1050,11 @@ Returns the new member.
 
 sub addDirectory	# Archive::Zip::Archive
 {
-	my ( $self, $name ) = @_;
-	my $newMember = $self->ZIPMEMBERCLASS->newDirectoryNamed( $name, @_ );
-	return $self->addMember( $newMember );
+	my ( $self, $name, $newName ) = @_;
+	my $newMember = $self->ZIPMEMBERCLASS->newDirectoryNamed( $name );
+	$self->addMember( $newMember );
+	$newMember->fileName( $newName ) if defined( $newName );
+	return $newMember;
 }
 
 #--------------------------------
@@ -1071,9 +1095,11 @@ sub writeToFileNamed	# Archive::Zip::Archive
 {
 	my $self = shift;
 	my $fileName = shift;
-	my $fh = FileHandle->new( $fileName, "w" )
-		or return _ioError( "Can't open $fileName for write" );
-	return $self->writeToFileHandle( $fh, 1 );
+	my ( $status, $fh ) = _newFileHandle( $fileName, 'w' );
+	return _ioError( "Can't open $fileName for write" ) if !$status;
+	my $retval = $self->writeToFileHandle( $fh, 1 );
+	$fh->close();
+	return $retval;
 }
 
 #--------------------------------
@@ -1088,13 +1114,13 @@ to re-write headers.
 If not provided, it is set by testing seekability. This could fail
 on some operating systems, though.
 
-    my $fh = FileHandle->new( 'someFile.zip', 'w' );
+    my $fh = IO::File->new( 'someFile.zip', 'w' );
     $zip->writeToFileHandle( $fh );
 
 If you pass a file handle that is not seekable (like if you're writing
 to a pipe or a socket), pass a false as the second argument:
 
-    my $fh = FileHandle->new( '| cat > somefile.zip', 'w' );
+    my $fh = IO::File->new( '| cat > somefile.zip', 'w' );
     $zip->writeToFileHandle( $fh, 0 );   # fh is not seekable
 
 =cut
@@ -1212,11 +1238,11 @@ sub read	# Archive::Zip::Archive
 	my $self = shift;
 	my $fileName = shift;
 	return _error( 'No filename given' ) if ! $fileName;
-	my $fh = FileHandle->new( $fileName, 'r' )
-		or return _ioError( "opening $fileName for read" );
+	my ( $status, $fh ) = _newFileHandle( $fileName, 'r' );
+	return _ioError( "opening $fileName for read" ) if !$status;
 	_binmode( $fh );
 
-	my $status = $self->_findEndOfCentralDirectory( $fh );
+	$status = $self->_findEndOfCentralDirectory( $fh );
 	return $status if $status != AZ_OK;
 
 	my $eocdPosition = $fh->tell();
@@ -1244,6 +1270,7 @@ sub read	# Archive::Zip::Archive
 		push( @{ $self->{'members'} }, $newMember );
 	}
 
+	$fh->close();
 	return AZ_OK;
 }
 
@@ -2018,9 +2045,11 @@ sub extractToFileNamed	# Archive::Zip::Member
 	my $name = shift;
 	return _error( "encryption unsupported" ) if $self->isEncrypted();
 	mkpath( dirname( $name ) );	# croaks on error
-	my $fh = FileHandle->new( $name, "w" )
-		or return _ioError( "Can't open file $name for write" );
-	return $self->extractToFileHandle( $fh );
+	my ( $status, $fh ) = _newFileHandle( $name, 'w' );
+	return _ioError( "Can't open file $name for write" ) if !$status;
+	my $retval = $self->extractToFileHandle( $fh );
+	$fh->close();
+	return $retval;
 }
 
 #--------------------------------
@@ -2415,6 +2444,10 @@ sub rewindData	# Archive::Zip::Member
 	# set to trap init errors
 	$self->{'chunkHandler'} = $self->can( '_noChunk' );
 
+	# Work around WinZip bug with 0-length DEFLATED files
+	$self->desiredCompressionMethod( COMPRESSION_STORED )
+		if $self->uncompressedSize() == 0;
+
 	# assume that we're going to read the whole file, and compute the CRC anew.
 	$self->{'crc32'} = 0 if ( $self->compressionMethod() == COMPRESSION_STORED );
 
@@ -2517,7 +2550,7 @@ sub contents	# Archive::Zip::Member
 {
 	my $self = shift;
 	my $newContents = shift;
-	if ( $newContents )
+	if ( defined( $newContents ) )
 	{
 		$self->_become( STRINGMEMBERCLASS );
 		return $self->contents( $newContents );
@@ -2532,21 +2565,21 @@ sub contents	# Archive::Zip::Member
 			$self->endRead();
 			return $status;
 		}
-		my $retval = \'';
+		my $retval = '';
 		while ( $status == AZ_OK )
 		{
 			my $ref;
 			( $ref, $status ) = $self->readChunk( $self->_readDataRemaining() );
 			# did we get it in one chunk?
 			if ( length( $$ref ) == $self->uncompressedSize() )
-			{ $retval = $ref }
+			{ $retval = $$ref }
 			else
-			{ $$retval .= $$ref }
+			{ $retval .= $$ref }
 		}
 		$self->desiredCompressionMethod( $oldCompression );
 		$self->endRead();
-		$retval = \undef if ( $status != AZ_OK and $status != AZ_STREAM_END );
-		return wantarray ? ( $$retval, $status ) : $$retval;
+		$retval = undef if ( $status != AZ_OK and $status != AZ_STREAM_END );
+		return wantarray ? ( $retval, $status ) : $retval;
 	}
 }
 
@@ -2745,12 +2778,13 @@ sub fh	# Archive::Zip::FileMember
 sub _openFile	# Archive::Zip::FileMember
 {
 	my $self = shift;
-	my $fh = $self->{'fh'} = FileHandle->new( $self->externalFileName(), 'r' );
-	if ( ! $fh )
+	my ( $status, $fh ) = _newFileHandle( $self->externalFileName(), 'r' );
+	if ( !$status )
 	{
 		_ioError( "Can't open", $self->externalFileName() );
 		return undef;
 	}
+	$self->{'fh'} = $fh;
 	_binmode( $fh );
 	return $fh;
 }
@@ -2801,9 +2835,11 @@ sub _newFromFileNamed	# Archive::Zip::NewFileMember
 	$self->fileName( $fileName );
 	$self->{'externalFileName'} = $fileName;
 	$self->{'compressionMethod'} = COMPRESSION_STORED;
-	$self->desiredCompressionMethod( COMPRESSION_DEFLATED );
 	my @stat = stat( _ );
 	$self->{'compressedSize'} = $self->{'uncompressedSize'} = $stat[7];
+	$self->desiredCompressionMethod( ( $self->compressedSize() > 0 )
+		? COMPRESSION_DEFLATED
+		: COMPRESSION_STORED );
 	$self->unixFileAttributes( $stat[2] );
 	$self->setLastModFileDateTimeFromUnix( $stat[9] );
 	$self->isTextFile( -T _ );

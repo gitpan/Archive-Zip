@@ -1,5 +1,18 @@
 Revision history for Perl extension Archive::Zip.
 
+0.09 Tue May  9 13:27:35 PDT 2000
+  - Added fix for bug in contents()
+  - removed system("rm" call in t/test.t for Windows.
+
+0.08 March 27 2000 (unreleased)
+  - Fixed documentation
+  - Used IO::File instead of FileHandle, allowed for use of almost anything as
+    a file handle.
+  - Extra filenames can be passed to extractMember(),
+    extractMemberWithoutPaths(), addFile(), addDirectory()
+  - Added work-around for WinZip bug with 0-length DEFLATED files
+  - Added Archive::Zip::Tree module for adding/extracting hierarchies
+
 0.07  Fri Mar 24 10:26:51 PST 2000
   - Added copyright
   - Added desiredCompressionLevel() and documentation

@@ -1,4 +1,4 @@
-# $Revision: 1.9 $
+# $Revision: 1.10 $
 # Before `make install' is performed this script should be runnable
 # with `make test'. After `make install' it should work as
 # `perl t/test.t'
@@ -9,8 +9,9 @@ use strict;
 use Test;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use FileHandle;
+use File::Path;
 
-BEGIN { plan tests => 124, todo => [] }
+BEGIN { plan tests => 123, todo => [] }
 
 BEGIN { require 't/common.pl' }
 
@@ -71,7 +72,7 @@ ok($status, AZ_OK);
 skip(! $testZipWorks, $status, 0);
 
 #--------- extract the directory by name
-ok(system("rm -rf " . TESTDIR), 0);
+rmtree([ TESTDIR ], 0, 0);
 $status = $zip->extractMember($memberName);
 ok($status, AZ_OK);
 ok(-d $memberName);
