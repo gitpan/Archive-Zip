@@ -41,7 +41,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.15_02";
+	$VERSION = "1.15";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
@@ -2448,7 +2448,7 @@ sub fileName    # Archive::Zip::DirectoryMember
 # is in their code...
 sub contents
 {
-	undef;
+	 return wantarray ? ( undef, AZ_OK ) : undef;
 }
 
 # ----------------------------------------------------------------------

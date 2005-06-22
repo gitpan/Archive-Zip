@@ -1,3 +1,4 @@
+#!perl -w
 # $Revision: 1.14 $
 # Before `make install' is performed this script should be runnable
 # with `make test'. After `make install' it should work as
@@ -14,7 +15,11 @@ use File::Spec;
 
 BEGIN { plan tests => 123, todo => [] }
 
-BEGIN { require 't/common.pl' or die "Can't get t/common.pl" }
+BEGIN { 
+    unshift @INC, "t/"; 
+    require ('t/common.pl') 
+        or die "Can't get t/common.pl";
+}
 
 my ($zip, @members, $numberOfMembers, $status, $member, $zipout,
 	$memberName, @memberNames);

@@ -3,7 +3,7 @@
 
 =head1 NAME
 
-Archive::Zip::Tree -- methods for adding/extracting trees using Archive::Zip
+Archive::Zip::Tree - methods for adding/extracting trees using Archive::Zip
 
 =head1 SYNOPSIS
 

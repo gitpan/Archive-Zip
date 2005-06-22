@@ -698,6 +698,11 @@ Also can change the contents of a member:
 
     $zip->contents( 'xyz.txt', 'This is the new contents' );
 
+If called expecting an array as the return value, it will include
+the status as the second value in the array.
+
+    ($content, $status) = $zip->contents( 'xyz.txt');
+
 =back
 
 =head2 Zip Archive I/O operations
@@ -1562,15 +1567,20 @@ L<Time::Local|Time::Local>
 
 Ned Konz, <nedkonz@cpan.org>
 
+=head1 CURRENT MAINTAINER
+
+
+Steve Peters, <steve@fisharerojo.org>
+
 
 File attributes code by Maurice Aubrey <maurice@lovelyfilth.com>
 
 =head1 COPYRIGHT
 
 
-Copyright (c) 2000-2003 Ned Konz. All rights reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as
-Perl itself.
+Copyright (c) 2000-2004 Ned Konz, 2005 Steve Peters. All rights reserved. 
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
 
 =head1 SEE ALSO
 

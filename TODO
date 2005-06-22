@@ -1,4 +1,4 @@
-$Revision: 1.13 $
+$Revision: 1.15 $
 Still to do:
 * auto-choosing storing vs compression
 * extra field hooks (see notes.txt)
@@ -7,3 +7,5 @@ Still to do:
 * Reading zip files from non-seekable inputs
 * separate unused constants into separate module
 * cookbook style docs
+* Handle tainted paths correctly
+* Work on better compatability with other IO:: modules
