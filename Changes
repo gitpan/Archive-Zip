@@ -1,4 +1,7 @@
 Revision history for Perl extension Archive::Zip.
+1.16 Mon Jul 04 12:49:30 CDT 2005
+ - Grrrr...removed test that fails when installing under CPANPLUS.
+
 1.15 Wed Jun 22 10:24:25 CDT 2005
   - added fix for RT #12771 Minor nit: warning in Archive::Zip::DirectoryMember::contents() 
   - added fix for RT #13327 Formatting problem in Archive::Zip::Tree manpage

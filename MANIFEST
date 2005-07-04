@@ -43,5 +43,4 @@ t/testex.t			Tests the examples
 t/testMemberRead.t		Tests Archive::Zip::MemberRead
 t/testTree.t			Tests tree features
 t/testUpdate.t			Tests updating features
-t/za_archive_zip.t
 TODO				Stuff left to do

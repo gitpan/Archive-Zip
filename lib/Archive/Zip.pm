@@ -41,7 +41,7 @@ BEGIN
 {
 	require Exporter;
 
-	$VERSION = "1.15";
+	$VERSION = "1.16";
 	@ISA = qw( Exporter );
 
 	my @ConstantNames = qw( FA_MSDOS FA_UNIX GPBF_ENCRYPTED_MASK
