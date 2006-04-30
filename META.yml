@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Archive-Zip
-version:      1.16
+version:      1.17_01
 version_from: lib/Archive/Zip.pm
 installdirs:  site
 requires:
@@ -22,4 +22,4 @@ requires:
     Time::Local:                   0
 
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+generated_by: ExtUtils::MakeMaker version 6.17
