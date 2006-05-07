@@ -1,21 +1,21 @@
-# Test Archive::Zip::MemberRead module
-# $Revision: 1.1 $
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl t/testMemberRead.t'
-# vim: ts=4 sw=4 ft=perl
+#!/usr/bin/perl -w
 
-$^W = 1;
 use strict;
-use Test;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Archive::Zip::MemberRead;
 
-BEGIN { plan tests => 7, todo => [] }
-BEGIN { require 't/common.pl' }
+use Test::More tests => 8;
+BEGIN {
+    unshift @INC, "t/"; 
+    require( File::Spec->catfile('t', 'common.pl') )
+		or die "Can't load t/common.pl";
+}
+
 use constant FILENAME => File::Spec->catfile(TESTDIR, 'member_read.zip');
 
 my ($zip, $member, $fh, @data);
 $zip  = new Archive::Zip;
+isa_ok( $zip, 'Archive::Zip' );
 @data = ( 'Line 1', 'Line 2', '', 'Line 3', 'Line 4' );
 
 $zip->addString(join("\n", @data), 'string.txt');
