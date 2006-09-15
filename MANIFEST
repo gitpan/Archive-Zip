@@ -42,5 +42,5 @@ t/03_ex.t
 t/04_readmember.t
 t/05_tree.t
 t/06_update.t
-t/99_pod.t
+t/99_author.t
 t/common.pl

@@ -39,7 +39,7 @@ $ErrorHandler = \&Carp::carp;
 # BEGIN block is necessary here so that other modules can use the constants.
 BEGIN
 {
-	$VERSION = '1.17_02';
+	$VERSION = '1.17_03';
 	$VERSION = eval $VERSION;
 
 	require Exporter;
@@ -477,7 +477,7 @@ sub _asLocalName    # Archive::Zip
 	my @paths = split ( /\//, $name );
 	my $filename = pop (@paths);
 	$filename = '' unless defined($filename);
-	my $localDirs = File::Spec->catdir(@paths);
+	my $localDirs = @paths?File::Spec->catdir(@paths):'';
 	my $localName = File::Spec->catpath( $volume, $localDirs, $filename );
 	$localName = File::Spec->rel2abs($localName) unless $volume;
 	return $localName;
