@@ -3,7 +3,6 @@ Changes
 docs/appnote.iz
 docs/Appnote.txt
 docs/Archive-Zip.pdf
-docs/Archive-Zip.ps
 docs/ideas.txt
 examples/calcSizes.pl
 examples/copy.pl
@@ -25,16 +24,21 @@ examples/ziprecent.pl
 examples/ziptest.pl
 INSTALL
 lib/Archive/Zip.pm
-lib/Archive/Zip.pod
+lib/Archive/Zip/Archive.pm
 lib/Archive/Zip/BufferedFileHandle.pm
+lib/Archive/Zip/DirectoryMember.pm
 lib/Archive/Zip/FAQ.pod
+lib/Archive/Zip/FileMember.pm
+lib/Archive/Zip/Member.pm
 lib/Archive/Zip/MemberRead.pm
 lib/Archive/Zip/MockFileHandle.pm
+lib/Archive/Zip/NewFileMember.pm
+lib/Archive/Zip/StringMember.pm
 lib/Archive/Zip/Tree.pm
+lib/Archive/Zip/ZipFileMember.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files
-META.yml
 README
 t/01_compile.t
 t/02_main.t
@@ -43,4 +47,7 @@ t/04_readmember.t
 t/05_tree.t
 t/06_update.t
 t/99_author.t
+t/badjpeg/expected.jpg
+t/badjpeg/source.zip
 t/common.pl
+META.yml                                 Module meta-data (added by MakeMaker)

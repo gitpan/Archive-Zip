@@ -1,13 +1,13 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Archive-Zip
-version:      1.17_03
-version_from: lib/Archive/Zip.pm
-installdirs:  site
-requires:
+--- #YAML:1.0
+name:                Archive-Zip
+version:             1.17_05
+abstract:            Provide an interface to ZIP archive files.
+license:             perl
+generated_by:        ExtUtils::MakeMaker version 6.31
+distribution_type:   module
+requires:     
     Carp:                          0
     Compress::Zlib:                1.14
-    Data::Dumper:                  0
     File::Basename:                0
     File::Copy:                    0
     File::Find:                    0
@@ -15,12 +15,13 @@ requires:
     File::Spec:                    0.80
     File::Temp:                    0
     File::Which:                   0.05
-    Getopt::Std:                   0
     IO::File:                      0
     IO::Handle:                    0
     IO::Seekable:                  0
     Test::More:                    0.42
     Time::Local:                   0
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
+    version: 1.2
+author:
+    - Ned Konz <perl@bike-nomad.com>
