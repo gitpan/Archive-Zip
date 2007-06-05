@@ -1,9 +1,9 @@
 --- #YAML:1.0
 name:                Archive-Zip
-version:             1.18
+version:             1.20
 abstract:            Provide an interface to ZIP archive files.
 license:             perl
-generated_by:        ExtUtils::MakeMaker version 6.31
+generated_by:        ExtUtils::MakeMaker version 6.32
 distribution_type:   module
 requires:     
     Carp:                          0
@@ -14,7 +14,6 @@ requires:
     File::Path:                    0
     File::Spec:                    0.80
     File::Temp:                    0
-    File::Which:                   0.05
     IO::File:                      0
     IO::Handle:                    0
     IO::Seekable:                  0

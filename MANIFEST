@@ -1,9 +1,5 @@
 bin/crc32
 Changes
-docs/appnote.iz
-docs/Appnote.txt
-docs/Archive-Zip.pdf
-docs/ideas.txt
 examples/calcSizes.pl
 examples/copy.pl
 examples/extract.pl
