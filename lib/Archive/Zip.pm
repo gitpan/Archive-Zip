@@ -1,18 +1,5 @@
 package Archive::Zip;
 
-# Copyright 2000 - 2002 Ned Konz. All rights reserved. This program is free
-# software; you can redistribute it and/or modify it under the same terms as
-# Perl itself.
-
-# ----------------------------------------------------------------------
-# class Archive::Zip
-# Note that the package Archive::Zip exists only for exporting and
-# sharing constants. Everything else is in another package
-# in this file.
-# Creation of a new Archive::Zip object actually creates a new object
-# of class Archive::Zip::Archive.
-# ----------------------------------------------------------------------
-
 BEGIN {
 	require 5.003_96;
 }
@@ -27,7 +14,7 @@ use File::Temp     ();
 
 use vars qw( $VERSION @ISA );
 BEGIN {
-	$VERSION = '1.20';
+	$VERSION = '1.21';
 
 	require Exporter;
 	@ISA = qw( Exporter );
@@ -325,9 +312,12 @@ sub setErrorHandler (&) {
 	return $oldErrorHandler;
 }
 
-# ----------------------------------------------------------------------
+
+
+
+
+######################################################################
 # Private utility functions (not methods).
-# ----------------------------------------------------------------------
 
 sub _printError {
 	my $string = join ( ' ', @_, "\n" );
@@ -371,7 +361,7 @@ sub _binmode {
 }
 
 # Attempt to guess whether file handle is seekable.
-# Because of problems with Windoze, this only returns true when
+# Because of problems with Windows, this only returns true when
 # the file handle is a real file.  
 sub _isSeekable {
 	my $fh = shift;
@@ -514,7 +504,7 @@ sub _asZipDirName
 	$$volReturn = $volume if ( ref($volReturn) );
 	my @dirs = map { $_ =~ s{/}{_}g; $_ } File::Spec->splitdir($directories);
 	if ( @dirs > 0 ) { pop (@dirs) unless $dirs[-1] }   # remove empty component
-	push ( @dirs, $file || '' );
+	push ( @dirs, defined($file) ? $file : '' );
 	#return wantarray ? @dirs : join ( '/', @dirs );
     return join ( '/', @dirs );
 }
@@ -2019,21 +2009,21 @@ Originally by Ned Konz E<lt>nedkonz@cpan.orgE<gt>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2004 Ned Konz. All rights reserved.
+Copyright 2000 - 2004 Ned Konz.
 
-Some parts copyright (c) 2005 Steve Peters. All rights reserved.
+Some parts copyright 2005 Steve Peters.
 
-Some parts copyright (c) 2006 Adam Kennedy. All rights reserved. 
+Some parts copyright 2006 - 2007 Adam Kennedy.
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+This program is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
 L<Compress::Zlib>, L<Archive::Tar>, L<Archive::Extract>
 
 There is a Japanese translation of this
-document at L<http://www.memb.jp/~deq/perl/doc-ja/Archive-Zip.html> that
-was done by DEQ E<lt>deq@oct.zaq.ne.jpE<gt> . Thanks! 
+document at L<http://www.memb.jp/~deq/perl/doc-ja/Archive-Zip.html>
+that was done by DEQ E<lt>deq@oct.zaq.ne.jpE<gt> . Thanks! 
 
 =cut

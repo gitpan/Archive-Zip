@@ -6,7 +6,7 @@ use strict;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.20';
+    $VERSION = '1.21';
     @ISA     = qw( Archive::Zip );
 }
 
@@ -130,8 +130,9 @@ sub desiredCompressionMethod {
         $self->{'desiredCompressionMethod'} = $newDesiredCompressionMethod;
         if ( $newDesiredCompressionMethod == COMPRESSION_STORED ) {
             $self->{'desiredCompressionLevel'} = 0;
-        }
-        elsif ( $oldDesiredCompressionMethod == COMPRESSION_STORED ) {
+            $self->{'bitFlag'} &= ~GPBF_HAS_DATA_DESCRIPTOR_MASK;
+
+        } elsif ( $oldDesiredCompressionMethod == COMPRESSION_STORED ) {
             $self->{'desiredCompressionLevel'} = COMPRESSION_LEVEL_DEFAULT;
         }
     }

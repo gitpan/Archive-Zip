@@ -18,7 +18,6 @@ examples/zipGrep.pl
 examples/zipinfo.pl
 examples/ziprecent.pl
 examples/ziptest.pl
-INSTALL
 lib/Archive/Zip.pm
 lib/Archive/Zip/Archive.pm
 lib/Archive/Zip/BufferedFileHandle.pm
@@ -42,7 +41,10 @@ t/03_ex.t
 t/04_readmember.t
 t/05_tree.t
 t/06_update.t
-t/99_author.t
+t/07_filenames_of_0.t
+t/08_readmember_record_sep.t
+t/98_pod.t
+t/99_pmv.t
 t/badjpeg/expected.jpg
 t/badjpeg/source.zip
 t/common.pl

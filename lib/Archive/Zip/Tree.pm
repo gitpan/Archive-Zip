@@ -2,7 +2,7 @@ use Archive::Zip;
 
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '1.20';
+	$VERSION = '1.21';
 }
 
 warn(
@@ -43,3 +43,4 @@ as Perl itself.
 L<Archive::Zip>
 
 =cut
+
