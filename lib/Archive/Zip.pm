@@ -1,9 +1,9 @@
 package Archive::Zip;
 
+use strict;
 BEGIN {
 	require 5.003_96;
 }
-use strict;
 use UNIVERSAL      ();
 use Carp           ();
 use IO::File       ();
@@ -14,7 +14,7 @@ use File::Temp     ();
 
 use vars qw( $VERSION @ISA );
 BEGIN {
-	$VERSION = '1.21';
+	$VERSION = '1.22';
 
 	require Exporter;
 	@ISA = qw( Exporter );
