@@ -6,7 +6,7 @@ use strict;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.23';
+    $VERSION = '1.24';
     @ISA     = qw( Archive::Zip );
 }
 
@@ -197,6 +197,7 @@ sub _mapPermissionsFromUnix {
 
     # TODO: map MS-DOS perms too (RHSA?)
 }
+
 
 # Convert ZIP permissions into Unix ones
 #
@@ -389,6 +390,8 @@ sub extractToFileNamed {
     return _ioError("Can't open file $name for write") unless $status;
     my $retval = $self->extractToFileHandle($fh);
     $fh->close();
+    chmod ($self->unixFileAttributes(), $name)
+        or return _error("Can't chmod() ${name}: $!");
     utime( $self->lastModTime(), $self->lastModTime(), $name );
     return $retval;
 }
@@ -512,7 +515,7 @@ sub _writeLocalFileHeader {
     my $fh   = shift;
 
     my $signatureData = pack( SIGNATURE_FORMAT, LOCAL_FILE_HEADER_SIGNATURE );
-    $fh->print($signatureData)
+    $self->_print($fh, $signatureData)
       or return _ioError("writing local header signature");
 
     my $header = pack(
@@ -528,13 +531,13 @@ sub _writeLocalFileHeader {
         length( $self->localExtraField() )
     );
 
-    $fh->print($header) or return _ioError("writing local header");
+    $self->_print($fh, $header) or return _ioError("writing local header");
     if ( $self->fileName() ) {
-        $fh->print( $self->fileName() )
+        $self->_print($fh, $self->fileName() )
           or return _ioError("writing local header filename");
     }
     if ( $self->localExtraField() ) {
-        $fh->print( $self->localExtraField() )
+        $self->_print($fh, $self->localExtraField() )
           or return _ioError("writing local extra field");
     }
 
@@ -547,7 +550,7 @@ sub _writeCentralDirectoryFileHeader {
 
     my $sigData =
       pack( SIGNATURE_FORMAT, CENTRAL_DIRECTORY_FILE_HEADER_SIGNATURE );
-    $fh->print($sigData)
+    $self->_print($fh, $sigData)
       or return _ioError("writing central directory header signature");
 
     my $fileNameLength    = length( $self->fileName() );
@@ -574,18 +577,18 @@ sub _writeCentralDirectoryFileHeader {
         $self->writeLocalHeaderRelativeOffset()
     );
 
-    $fh->print($header)
+    $self->_print($fh, $header)
       or return _ioError("writing central directory header");
     if ($fileNameLength) {
-        $fh->print( $self->fileName() )
+        $self->_print($fh,  $self->fileName() )
           or return _ioError("writing central directory header signature");
     }
     if ($extraFieldLength) {
-        $fh->print( $self->cdExtraField() )
+        $self->_print($fh,  $self->cdExtraField() )
           or return _ioError("writing central directory extra field");
     }
     if ($fileCommentLength) {
-        $fh->print( $self->fileComment() )
+        $self->_print($fh,  $self->fileComment() )
           or return _ioError("writing central directory file comment");
     }
 
@@ -608,7 +611,7 @@ sub _writeDataDescriptor {
         $self->uncompressedSize()
     );
 
-    $fh->print($header)
+    $self->_print($fh, $header)
       or return _ioError("writing data descriptor");
     return AZ_OK;
 }
@@ -638,7 +641,7 @@ sub _refreshLocalFileHeader {
         length( $self->localExtraField() )
     );
 
-    $fh->print($header)
+    $self->_print($fh, $header)
       or return _ioError("re-writing local header");
     $fh->seek( $here, IO::Seekable::SEEK_SET )
       or return _ioError("seeking after rewrite of local header");
@@ -933,7 +936,7 @@ sub _writeData {
         return $status if ( $status != AZ_OK and $status != AZ_STREAM_END );
 
         if ( length($$outRef) > 0 ) {
-            $writeFh->print($$outRef)
+            $self->_print($writeFh, $$outRef)
               or return _ioError("write error during copy");
         }
 

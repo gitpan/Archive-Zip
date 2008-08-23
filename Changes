@@ -1,4 +1,39 @@
-Revision history for Perl extension Archive::Zip
+Revision history for Perl extension Archive-Zip
+
+1.24 Sun 23 Aug 2008 - Adam Kennedy
+  - Blatantly pander to CPANTS by adding use strict to a deprecated module
+  - Add an explicit load of FileHandle since in some circumstances,
+    calling GLOB->print() failed.
+  - Fixed http://rt.cpan.org/Public/Bug/Display.html?id=25925 :
+    - Archive-Zip wrote faulty .zip files when $\ was set (such as when running
+    using perl -l).
+    - Incorporated a heavily modified version of ECARROLL's test file.
+    - Thanks for ECARROLL for reporting it, and helping with the investigation.
+    - The fix was to convert all $fh->print(@data) to $self->_print($fh, @data)
+    where the _print() method localizes $\ to undef.
+  - Fixed http://rt.cpan.org/Ticket/Display.html?id=14132 :
+    - Incorrect file permissions after extraction.
+    - Archive-Zip did not set the file permissions correctly in
+      extractToFileNamed(). 
+    - Added t/10_chmod.t and t/data/chmod.zip. Changed 
+      lib/Archive/Zip/Member.pm.
+    - Reported by ak2 and jlv (Thanks!)
+    - SHLOMIF wrote the test script.
+    - (SHLOMIF)
+  - Removed a double "required module" from the Archive::Zip POD.
+  - Fixed http://rt.cpan.org/Ticket/Display.html?id=24557 ("documentation 
+    improvement"):
+    - mentioned Archive::Zip::MemberRead in a few places.
+    - TODO: 
+      - 1. Add a method to Archive::Zip to get a ::MemberRead from an
+        archive member using -> notation. (?)
+      - 2. In the POD of ::MemberRead - replace the indirect object
+        call.
+  - Changed the POD of ::MemberRead:
+    - replaced the indirect object construction with $PKG->new().
+  - Fixed http://rt.cpan.org/Public/Bug/Display.html?id=34103 :
+    - changed the example to read unless ( .. == AZ_OK) instead of
+    unless ( != AZ_OK), which was incorrect.
 
 1.23 Thu  8 Nov 2007 - Adam Kennedy
   - Temporarily skilling some failing tests on Win32 in the

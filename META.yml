@@ -1,12 +1,13 @@
 --- #YAML:1.0
 name:                Archive-Zip
-version:             1.23
+version:             1.24
 abstract:            Provide an interface to ZIP archive files.
 license:             perl
-generated_by:        ExtUtils::MakeMaker version 6.32
+author:              
+    - Ned Konz <perl@bike-nomad.com>
+generated_by:        ExtUtils::MakeMaker version 6.44
 distribution_type:   module
 requires:     
-    Carp:                          0
     Compress::Zlib:                1.14
     File::Basename:                0
     File::Copy:                    0
@@ -20,7 +21,5 @@ requires:
     Test::More:                    0.42
     Time::Local:                   0
 meta-spec:
-    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
-    version: 1.2
-author:
-    - Ned Konz <perl@bike-nomad.com>
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

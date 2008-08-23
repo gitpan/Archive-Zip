@@ -52,6 +52,9 @@ DESCRIPTION
     This module uses the Compress::Zlib library to read and write the
     compressed streams inside the files.
 
+    One can use Archive::Zip::MemberRead to read the zip file archive
+    members as if they were files.
+
   File Naming
     Regardless of what your local file system uses for file naming, names in
     a Zip file are in Unix format (*forward* slashes (/) separating
@@ -535,7 +538,7 @@ Archive::Zip Methods
         returns true. This could fail on some operating systems, though.
 
             my $fh = IO::File->new( 'someFile.zip', 'w' );
-            unless ( $zip->writeToFileHandle( $fh ) != AZ_OK ) {
+            unless ( $zip->writeToFileHandle( $fh ) == AZ_OK ) {
                 # error handling
             }
 
@@ -1081,8 +1084,6 @@ REQUIRED MODULES
 
     File::Spec
 
-    File::Spec
-
     IO::File
 
     IO::Seekable
@@ -1147,16 +1148,19 @@ AUTHOR
     Originally by Ned Konz <nedkonz@cpan.org>.
 
 COPYRIGHT
-    Copyright 2000 - 2004 Ned Konz.
+    Some parts copyright 2006 - 2008 Adam Kennedy.
 
     Some parts copyright 2005 Steve Peters.
 
-    Some parts copyright 2006 - 2007 Adam Kennedy.
+    Original work copyright 2000 - 2004 Ned Konz.
 
     This program is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.
 
 SEE ALSO
+    Look at Archive::Zip::MemberRead which is a wrapper that allows one to
+    read Zip archive members as if they were files.
+
     Compress::Zlib, Archive::Tar, Archive::Extract
 
     There is a Japanese translation of this document at

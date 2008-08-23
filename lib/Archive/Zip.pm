@@ -11,10 +11,11 @@ use IO::Seekable   ();
 use Compress::Zlib ();
 use File::Spec     ();
 use File::Temp     ();
+use FileHandle     ();
 
 use vars qw( $VERSION @ISA );
 BEGIN {
-	$VERSION = '1.23';
+	$VERSION = '1.24';
 
 	require Exporter;
 	@ISA = qw( Exporter );
@@ -264,10 +265,12 @@ use constant ZIPMEMBERCLASS  => 'Archive::Zip::Member';
 
 sub _ISA ($$) {
 	# Can't rely on Scalar::Util, so use the next best way
+	local $@;
 	!! eval { ref $_[0] and $_[0]->isa($_[1]) };
 }
 
 sub _CAN ($$) {
+	local $@;
 	!! eval { ref $_[0] and $_[0]->can($_[1]) };
 }
 
@@ -390,6 +393,17 @@ sub _isSeekable {
 		) ? 1 : 0;
 }
 
+# Print to the filehandle, while making sure the pesky Perl special global 
+# variables don't interfere.
+sub _print
+{
+    my ($self, $fh, @data) = @_;
+
+    local $\;
+
+    return $fh->print(@data);
+}
+
 # Return an opened IO::Handle
 # my ( $status, fh ) = _newFileHandle( 'fileName', 'w' );
 # Can take a filename, file handle, or ref to GLOB
@@ -404,13 +418,13 @@ sub _newFileHandle {
 		if ( _ISA($fd, 'IO::Scalar') or _ISA($fd, 'IO::String') ) {
 			$handle = $fd;
 		} elsif ( _ISA($fd, 'IO::Handle') or ref($fd) eq 'GLOB' ) {
-			$handle = IO::File->new();
+			$handle = IO::File->new;
 			$status = $handle->fdopen( $fd, @_ );
 		} else {
 			$handle = $fd;
 		}
 	} else {
-		$handle = IO::File->new();
+		$handle = IO::File->new;
 		$status = $handle->open( $fd, @_ );
 	}
 
@@ -589,6 +603,9 @@ directories, files, or strings.
 
 This module uses the L<Compress::Zlib> library to read and write the
 compressed streams inside the files.
+
+One can use L<Archive::Zip::MemberRead> to read the zip file archive members
+as if they were files.
 
 =head2 File Naming
 
@@ -1210,7 +1227,7 @@ set if the Perl C<-f> test returns true. This could fail on
 some operating systems, though.
 
     my $fh = IO::File->new( 'someFile.zip', 'w' );
-    unless ( $zip->writeToFileHandle( $fh ) != AZ_OK ) {
+    unless ( $zip->writeToFileHandle( $fh ) == AZ_OK ) {
         # error handling
     }
 
@@ -1936,8 +1953,6 @@ L<File::Path>
 
 L<File::Spec>
 
-L<File::Spec>
-
 L<IO::File>
 
 L<IO::Seekable>
@@ -2009,16 +2024,19 @@ Originally by Ned Konz E<lt>nedkonz@cpan.orgE<gt>.
 
 =head1 COPYRIGHT
 
-Copyright 2000 - 2004 Ned Konz.
+Some parts copyright 2006 - 2008 Adam Kennedy.
 
 Some parts copyright 2005 Steve Peters.
 
-Some parts copyright 2006 - 2007 Adam Kennedy.
+Original work copyright 2000 - 2004 Ned Konz.
 
 This program is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
 =head1 SEE ALSO
+
+Look at L<Archive::Zip::MemberRead> which is a wrapper that allows one to
+read Zip archive members as if they were files.
 
 L<Compress::Zlib>, L<Archive::Tar>, L<Archive::Extract>
 
