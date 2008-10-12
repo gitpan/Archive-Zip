@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Archive-Zip
-version:             1.25
+version:             1.26
 abstract:            Provide an interface to ZIP archive files.
 license:             perl
 author:              
