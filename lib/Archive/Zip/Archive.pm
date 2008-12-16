@@ -13,7 +13,7 @@ use Cwd;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.26';
+    $VERSION = '1.27_01';
     @ISA     = qw( Archive::Zip );
 }
 
@@ -51,6 +51,11 @@ sub new {
         return $status == AZ_OK ? $self : undef;
     }
     return $self;
+}
+
+sub storeSymbolicLink {
+    my $self = shift;
+    $self->{'storeSymbolicLink'} = shift;
 }
 
 sub members {
@@ -200,7 +205,14 @@ sub addFile {
     my $fileName  = shift;
     my $newName   = shift;
     my $newMember = $self->ZIPMEMBERCLASS->newFromFile( $fileName, $newName );
-    $self->addMember($newMember) if defined($newMember);
+    if ( $self->{'storeSymbolicLink'} && -l $fileName ) {
+        my $newMember = $self->ZIPMEMBERCLASS->newFromString(readlink $fileName, $newName);
+        # For symbolic links, External File Attribute is set to 0000FFA1 by Info-ZIP
+        $newMember->{'externalFileAttributes'} = 2717843456;
+        $self->addMember($newMember);
+    } else {
+        $self->addMember($newMember);
+    }
     return $newMember;
 }
 
@@ -213,7 +225,16 @@ sub addString {
 sub addDirectory {
     my ( $self, $name, $newName ) = @_;
     my $newMember = $self->ZIPMEMBERCLASS->newDirectoryNamed( $name, $newName );
-    $self->addMember($newMember);
+    if ( $self->{'storeSymbolicLink'} && -l $name ) {
+        my $link = readlink $name;
+        ( $newName =~ s{/$}{} ) if $newName; # Strip trailing /
+        my $newMember = $self->ZIPMEMBERCLASS->newFromString($link, $newName);
+        # For symbolic links, External File Attribute is set to 0000FFA1 by Info-ZIP
+        $newMember->{'externalFileAttributes'} = 2717843456;
+        $self->addMember($newMember);
+    } else {
+        $self->addMember($newMember);
+    }
     return $newMember;
 }
 
@@ -221,12 +242,16 @@ sub addDirectory {
 
 sub addFileOrDirectory {
     my ( $self, $name, $newName ) = @_;
+    $name =~ s{/$}{};
+    if ( $newName ) {
+        $newName =~ s{/$}{};
+    } else {
+        $newName = $name;
+    }
     if ( -f $name ) {
-        ( $newName =~ s{/$}{} ) if $newName;
         return $self->addFile( $name, $newName );
     }
     elsif ( -d $name ) {
-        ( $newName =~ s{[^/]$}{&/} ) if $newName;
         return $self->addDirectory( $name, $newName );
     }
     else {
@@ -573,6 +598,7 @@ sub addTree {
     my $dest = shift;
     $dest = '' unless defined($dest);
     my $pred = shift || sub { -r };
+    my $compressionLevel = shift;
     my @files;
     my $startDir = _untaintDir( cwd() );
 
@@ -607,6 +633,8 @@ sub addTree {
         my $member = $isDir
           ? $self->addDirectory( $fileName, $archiveName )
           : $self->addFile( $fileName, $archiveName );
+        $member->desiredCompressionLevel($compressionLevel);
+
         return _error("add $fileName failed in addTree()") if !$member;
     }
     return AZ_OK;

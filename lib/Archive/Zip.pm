@@ -15,7 +15,7 @@ use FileHandle     ();
 
 use vars qw( $VERSION @ISA );
 BEGIN {
-	$VERSION = '1.26';
+	$VERSION = '1.27_01';
 
 	require Exporter;
 	@ISA = qw( Exporter );
@@ -517,8 +517,8 @@ sub _asZipDirName
 	  File::Spec->splitpath( File::Spec->canonpath($name), $forceDir );
 	$$volReturn = $volume if ( ref($volReturn) );
 	my @dirs = map { $_ =~ s{/}{_}g; $_ } File::Spec->splitdir($directories);
-	if ( @dirs > 0 ) { pop (@dirs) unless $dirs[-1] }   # remove empty component
-	push ( @dirs, defined($file) ? $file : '' );
+    if ( @dirs > 0 ) { pop (@dirs) unless $dirs[-1] }   # remove empty component
+    push ( @dirs, defined($file) ? $file : '' );
 	#return wantarray ? @dirs : join ( '/', @dirs );
     return join ( '/', @dirs );
 }
@@ -538,7 +538,8 @@ sub _asLocalName
 	$filename = '' unless defined($filename);
 	my $localDirs = @paths?File::Spec->catdir(@paths):'';
 	my $localName = File::Spec->catpath( $volume, $localDirs, $filename );
-	$localName = File::Spec->rel2abs($localName) unless $volume;
+    use Cwd;
+    $localName = File::Spec->catfile(getcwd, $localName) unless $volume;
 	return $localName;
 }
 

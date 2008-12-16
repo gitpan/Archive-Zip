@@ -6,7 +6,7 @@ use strict;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.26';
+    $VERSION = '1.27_01';
     @ISA     = qw( Archive::Zip );
 }
 
@@ -81,6 +81,7 @@ sub new {
         'crc32'                    => 0,
         'compressedSize'           => 0,
         'uncompressedSize'         => 0,
+        'isSymbolicLink'           => 0,
         @_
     };
     bless( $self, $class );
@@ -115,7 +116,19 @@ sub versionNeededToExtract {
 }
 
 sub bitFlag {
-    shift->{'bitFlag'};
+    my $self = shift;
+
+    # Set General Purpose Bit Flags according to the desiredCompressionLevel setting
+    if ( $self->desiredCompressionLevel == 1 || $self->desiredCompressionLevel == 2 ) {
+        $self->{'bitFlag'} = DEFLATING_COMPRESSION_FAST;
+    } elsif ( $self->desiredCompressionLevel == 3 || $self->desiredCompressionLevel == 4
+          || $self->desiredCompressionLevel == 5 || $self->desiredCompressionLevel == 6
+          || $self->desiredCompressionLevel == 7 ) {
+        $self->{'bitFlag'} = DEFLATING_COMPRESSION_NORMAL;
+    } elsif ( $self->desiredCompressionLevel == 8 || $self->desiredCompressionLevel == 9 ) {
+        $self->{'bitFlag'} = DEFLATING_COMPRESSION_MAXIMUM;
+    }
+    $self->{'bitFlag'};
 }
 
 sub compressionMethod {
@@ -390,16 +403,48 @@ sub isBinaryFile {
 sub extractToFileNamed {
     my $self = shift;
     my $name = shift;    # local FS name
-    return _error("encryption unsupported") if $self->isEncrypted();
-    mkpath( dirname($name) );    # croaks on error
-    my ( $status, $fh ) = _newFileHandle( $name, 'w' );
-    return _ioError("Can't open file $name for write") unless $status;
+    $self->{'isSymbolicLink'} = 0;
+
+    # Check if the file / directory is a symbolic link or not
+    if ( $self->{'externalFileAttributes'} == 2717843456 ) {
+        $self->{'isSymbolicLink'} = 1;
+        $self->{'newName'} = $name;
+        my ( $status, $fh ) = _newFileHandle( $name, 'r' );
+        my $retval = $self->extractToFileHandle($fh);
+        $fh->close();
+    } else {
+        #return _writeSymbolicLink($self, $name) if $self->isSymbolicLink();
+        return _error("encryption unsupported") if $self->isEncrypted();
+        mkpath( dirname($name) );    # croaks on error
+        my ( $status, $fh ) = _newFileHandle( $name, 'w' );
+        return _ioError("Can't open file $name for write") unless $status;
+        my $retval = $self->extractToFileHandle($fh);
+        $fh->close();
+        chmod ($self->unixFileAttributes(), $name)
+            or return _error("Can't chmod() ${name}: $!");
+        utime( $self->lastModTime(), $self->lastModTime(), $name );
+        return $retval;
+    }
+}
+
+sub _writeSymbolicLink {
+    my $self = shift;
+    my $name = shift;
+    my $chunkSize = $Archive::Zip::ChunkSize;
+    #my ( $outRef, undef ) = $self->readChunk($chunkSize);
+    my $fh;
     my $retval = $self->extractToFileHandle($fh);
-    $fh->close();
-    chmod ($self->unixFileAttributes(), $name)
-        or return _error("Can't chmod() ${name}: $!");
-    utime( $self->lastModTime(), $self->lastModTime(), $name );
-    return $retval;
+    my ( $outRef, undef ) = $self->readChunk(100);
+}
+
+sub isSymbolicLink {
+    my $self = shift;
+    if ( $self->{'externalFileAttributes'} == 2717843456 ) {
+        $self->{'isSymbolicLink'} = 1;
+    } else {
+        return 0;
+    }
+    1;
 }
 
 sub isDirectory {
@@ -538,7 +583,9 @@ sub _writeLocalFileHeader {
     );
 
     $self->_print($fh, $header) or return _ioError("writing local header");
-    if ( $self->fileName() ) {
+
+    # Check for a valid filename or a filename equal to a literal `0'
+    if ( $self->fileName() || $self->fileName eq '0' ) {
         $self->_print($fh, $self->fileName() )
           or return _ioError("writing local header filename");
     }
@@ -887,7 +934,7 @@ sub _writeToFileHandle {
     my $offset       = shift;
 
     return _error("no member name given for $self")
-      unless $self->fileName();
+      if $self->fileName() eq '';
 
     $self->{'writeLocalHeaderRelativeOffset'} = $offset;
     $self->{'wasWritten'}                     = 0;
@@ -933,22 +980,30 @@ sub _writeData {
     my $self    = shift;
     my $writeFh = shift;
 
-    return AZ_OK if ( $self->uncompressedSize() == 0 );
-    my $status;
-    my $chunkSize = $Archive::Zip::ChunkSize;
-    while ( $self->_readDataRemaining() > 0 ) {
-        my $outRef;
-        ( $outRef, $status ) = $self->readChunk($chunkSize);
-        return $status if ( $status != AZ_OK and $status != AZ_STREAM_END );
+    # If symbolic link, just create one if the operating system is Linux, Unix, BSD or VMS
+    # TODO: Add checks for other operating systems
+    if ( $self->{'isSymbolicLink'} == 1 && $^O eq 'linux' ) {
+        my $chunkSize = $Archive::Zip::ChunkSize;
+        my ( $outRef, $status ) = $self->readChunk($chunkSize);
+        symlink $$outRef, $self->{'newName'};
+    } else {
+        return AZ_OK if ( $self->uncompressedSize() == 0 );
+        my $status;
+        my $chunkSize = $Archive::Zip::ChunkSize;
+        while ( $self->_readDataRemaining() > 0 ) {
+            my $outRef;
+            ( $outRef, $status ) = $self->readChunk($chunkSize);
+            return $status if ( $status != AZ_OK and $status != AZ_STREAM_END );
 
-        if ( length($$outRef) > 0 ) {
-            $self->_print($writeFh, $$outRef)
-              or return _ioError("write error during copy");
+            if ( length($$outRef) > 0 ) {
+                $self->_print($writeFh, $$outRef)
+                  or return _ioError("write error during copy");
+            }
+
+            last if $status == AZ_STREAM_END;
         }
-
-        last if $status == AZ_STREAM_END;
+        $self->{'compressedSize'} = $self->_writeOffset();
     }
-    $self->{'compressedSize'} = $self->_writeOffset();
     return AZ_OK;
 }
 
