@@ -13,7 +13,7 @@ use Cwd;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.27_01';
+    $VERSION = '1.28';
     @ISA     = qw( Archive::Zip );
 }
 
@@ -207,8 +207,8 @@ sub addFile {
     my $newMember = $self->ZIPMEMBERCLASS->newFromFile( $fileName, $newName );
     if ( $self->{'storeSymbolicLink'} && -l $fileName ) {
         my $newMember = $self->ZIPMEMBERCLASS->newFromString(readlink $fileName, $newName);
-        # For symbolic links, External File Attribute is set to 0000FFA1 by Info-ZIP
-        $newMember->{'externalFileAttributes'} = 2717843456;
+        # For symbolic links, External File Attribute is set to 0xA1FF0000 by Info-ZIP
+        $newMember->{'externalFileAttributes'} = 0xA1FF0000;
         $self->addMember($newMember);
     } else {
         $self->addMember($newMember);
@@ -229,8 +229,8 @@ sub addDirectory {
         my $link = readlink $name;
         ( $newName =~ s{/$}{} ) if $newName; # Strip trailing /
         my $newMember = $self->ZIPMEMBERCLASS->newFromString($link, $newName);
-        # For symbolic links, External File Attribute is set to 0000FFA1 by Info-ZIP
-        $newMember->{'externalFileAttributes'} = 2717843456;
+        # For symbolic links, External File Attribute is set to 0xA1FF0000 by Info-ZIP
+        $newMember->{'externalFileAttributes'} = 0xA1FF0000;
         $self->addMember($newMember);
     } else {
         $self->addMember($newMember);

@@ -5,29 +5,29 @@ SYNOPSIS
        # Create a Zip file
        use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
        my $zip = Archive::Zip->new();
-   
-       # Add a directory
+       
+   # Add a directory
        my $dir_member = $zip->addDirectory( 'dirname/' );
-   
-       # Add a file from a string with compression
+       
+   # Add a file from a string with compression
        my $string_member = $zip->addString( 'This is a test', 'stringMember.txt' );
        $string_member->desiredCompressionMethod( COMPRESSION_DEFLATED );
-   
-       # Add a file from disk
+       
+   # Add a file from disk
        my $file_member = $zip->addFile( 'xyz.pl', 'AnotherName.pl' );
-   
-       # Save the Zip file
+       
+   # Save the Zip file
        unless ( $zip->writeToFileNamed('someZip.zip') == AZ_OK ) {
            die 'write error';
        }
-   
-       # Read a Zip file
+       
+   # Read a Zip file
        my $somezip = Archive::Zip->new();
        unless ( $somezip->read( 'someZip.zip' ) == AZ_OK ) {
            die 'read error';
        }
-   
-       # Change the compression type for a file in the Zip
+       
+   # Change the compression type for a file in the Zip
        my $member = $somezip->memberNamed( 'stringMember.txt' );
        $member->desiredCompressionMethod( COMPRESSION_STORED );
        unless ( $zip->writeToFileNamed( 'someOtherZip.zip' ) == AZ_OK ) {
@@ -49,7 +49,7 @@ DESCRIPTION
     Members can be created from members in existing Zip files, or from
     existing directories, files, or strings.
 
-    This module uses the Compress::Zlib library to read and write the
+    This module uses the Compress::Raw::Zlib library to read and write the
     compressed streams inside the files.
 
     One can use Archive::Zip::MemberRead to read the zip file archive
@@ -137,10 +137,10 @@ ERROR CODES
     can be imported into your namespace using the ":ERROR_CODES" tag:
 
       use Archive::Zip qw( :ERROR_CODES );
-  
-      ...
-  
-      unless ( $zip->read( 'myfile.zip' ) == AZ_OK ) {
+      
+  ...
+      
+  unless ( $zip->read( 'myfile.zip' ) == AZ_OK ) {
           die "whoops!";
       }
 
@@ -177,11 +177,11 @@ ERROR CODES
 
       my $member = $zip->memberNamed( 'xyz.txt' );
       $member->compressionMethod();    # return current compression
-  
-      # set to read uncompressed
+      
+  # set to read uncompressed
       $member->desiredCompressionMethod( COMPRESSION_STORED );
-  
-      # set to read compressed
+      
+  # set to read compressed
       $member->desiredCompressionMethod( COMPRESSION_DEFLATED );
 
     There are two different compression methods:
@@ -254,8 +254,8 @@ Archive::Zip Methods
         $crc = Archive::Zip->computeCRC32( 'ghijkl' );    # NOT OK
 
     Archive::Zip::computeCRC32( $string [, $crc] )
-        This is a utility function that uses the Compress::Zlib CRC routine
-        to compute a CRC-32. You can get the CRC of a string:
+        This is a utility function that uses the Compress::Raw::Zlib CRC
+        routine to compute a CRC-32. You can get the CRC of a string:
 
             $crc = Archive::Zip::computeCRC32( $string );
 
@@ -269,7 +269,7 @@ Archive::Zip Methods
         Report or change chunk size used for reading and writing. This can
         make big differences in dealing with large files. Currently, this
         defaults to 32K. This also changes the chunk size used for
-        Compress::Zlib. You must call setChunkSize() before reading or
+        Compress::Raw::Zlib. You must call setChunkSize() before reading or
         writing. This is not exportable, so you must call it like:
 
             Archive::Zip::setChunkSize( 4096 );
@@ -617,26 +617,26 @@ Archive::Zip Methods
 
       use Archive::Zip;
       my $zip = Archive::Zip->new();
-  
-      # add all readable files and directories below . as xyz/*
+      
+  # add all readable files and directories below . as xyz/*
       $zip->addTree( '.', 'xyz' );
-  
-      # add all readable plain files below /abc as def/*
+      
+  # add all readable plain files below /abc as def/*
       $zip->addTree( '/abc', 'def', sub { -f && -r } );
-  
-      # add all .c files below /tmp as stuff/*
+      
+  # add all .c files below /tmp as stuff/*
       $zip->addTreeMatching( '/tmp', 'stuff', '\.c$' );
-  
-      # add all .o files below /tmp as stuff/* if they aren't writable
+      
+  # add all .o files below /tmp as stuff/* if they aren't writable
       $zip->addTreeMatching( '/tmp', 'stuff', '\.o$', sub { ! -w } );
-  
-      # add all .so files below /tmp that are smaller than 200 bytes as stuff/*
+      
+  # add all .so files below /tmp that are smaller than 200 bytes as stuff/*
       $zip->addTreeMatching( '/tmp', 'stuff', '\.o$', sub { -s < 200 } );
-  
-      # and write them into a file
+      
+  # and write them into a file
       $zip->writeToFileNamed('xxx.zip');
-  
-      # now extract the same files into /tmpx
+      
+  # now extract the same files into /tmpx
       $zip->extractTree( 'stuff', '/tmpx' );
 
     $zip->addTree( $root, $dest [,$pred] ) -- Add tree of files to a zip
@@ -1070,7 +1070,7 @@ REQUIRED MODULES
 
     Carp
 
-    Compress::Zlib
+    Compress::Raw::Zlib
 
     Cwd
 
@@ -1148,7 +1148,7 @@ AUTHOR
     Originally by Ned Konz <nedkonz@cpan.org>.
 
 COPYRIGHT
-    Some parts copyright 2006 - 2008 Adam Kennedy.
+    Some parts copyright 2006 - 2009 Adam Kennedy.
 
     Some parts copyright 2005 Steve Peters.
 
@@ -1161,7 +1161,7 @@ SEE ALSO
     Look at Archive::Zip::MemberRead which is a wrapper that allows one to
     read Zip archive members as if they were files.
 
-    Compress::Zlib, Archive::Tar, Archive::Extract
+    Compress::Raw::Zlib, Archive::Tar, Archive::Extract
 
     There is a Japanese translation of this document at
     <http://www.memb.jp/~deq/perl/doc-ja/Archive-Zip.html> that was done by

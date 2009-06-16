@@ -1,4 +1,3 @@
-bin/crc32
 Changes
 examples/calcSizes.pl
 examples/copy.pl
@@ -35,6 +34,7 @@ LICENSE
 Makefile.PL
 MANIFEST			This list of files
 README
+script/crc32
 t/01_compile.t
 t/02_main.t
 t/03_ex.t
