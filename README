@@ -987,7 +987,7 @@ MEMBER OPERATIONS
         {
         ( $bufferRef, $status ) = $member->readChunk();
         die "error $status"
-                            if $status != AZ_OK && $status != AZ_STREAM_END;
+                    if $status != AZ_OK && $status != AZ_STREAM_END;
         # do something with $bufferRef:
         print $$bufferRef;
         }

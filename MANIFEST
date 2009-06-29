@@ -46,6 +46,7 @@ t/08_readmember_record_sep.t
 t/09_output_record_sep.t
 t/10_chmod.t
 t/11_explorer.t
+t/12_bug_47223.t
 t/97_meta.t
 t/98_pod.t
 t/99_pmv.t

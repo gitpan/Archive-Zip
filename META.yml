@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Archive-Zip
-version:            1.28
+version:            1.29
 abstract:           Provide an interface to ZIP archive files.
 author:
     - Ned Konz <perl@bike-nomad.com>
