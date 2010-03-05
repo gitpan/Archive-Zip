@@ -3,7 +3,7 @@ package Archive::Zip::Tree;
 use strict;
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '1.30';
+	$VERSION = '1.31_01';
 }
 
 use Archive::Zip;
@@ -19,8 +19,6 @@ __END__
 =head1 NAME
 
 Archive::Zip::Tree - (DEPRECATED) methods for adding/extracting trees using Archive::Zip
-
-=head1 SYNOPSIS
 
 =head1 DESCRIPTION
 

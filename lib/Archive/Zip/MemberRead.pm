@@ -40,7 +40,7 @@ use vars qw{$VERSION};
 my $nl;
 
 BEGIN {
-    $VERSION = '1.30';
+    $VERSION = '1.31_01';
     $VERSION = eval $VERSION;
      # Requirement for newline conversion. Should check for e.g., DOS and OS/2 as well, but am too lazy.
      $nl = $^O eq 'MSWin32' ? "\r\n" : "\n";
@@ -247,20 +247,37 @@ Returns undef on eof. All subsequent calls would return undef,
 unless a rewind() is called.
 Note: The line returned has the input_record_separator (default: newline) removed.
 
+=item getline( { preserve_line_ending => 1 } )
+
+Returns the next line including the line ending.
+
 =cut
 
 sub getline {
-    my $self = shift;
+    my ( $self, $argref ) = @_;
+
     my $size = $self->buffer_size();
     my $sep  = $self->_sep_re();
+
+    my $preserve_line_ending;
+    if ( ref $argref eq 'HASH' ) {
+        $preserve_line_ending = $argref->{'preserve_line_ending'};
+        $sep =~ s/\\([^A-Za-z_0-9])+/$1/g;
+    }
 
     for (;;) {
         if (   $sep
             && defined($self->{buffer})
             && $self->{buffer} =~ s/^(.*?)$sep//s
            ) {
+            my $line = $1;
             $self->{line_no}++;
-            return $1;
+            if ($preserve_line_ending) {
+                return $line . $sep;
+            }
+            else {
+                return $line;
+            }
         } elsif ($self->{at_end}) {
             $self->{line_no}++ if $self->{buffer};
             return delete $self->{buffer};

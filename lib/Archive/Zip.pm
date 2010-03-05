@@ -2,7 +2,7 @@ package Archive::Zip;
 
 use strict;
 BEGIN {
-    require 5.003_96;
+    require 5.004;
 }
 use UNIVERSAL           ();
 use Carp                ();
@@ -16,7 +16,7 @@ use FileHandle          ();
 
 use vars qw( $VERSION @ISA );
 BEGIN {
-    $VERSION = '1.30';
+    $VERSION = '1.31_01';
 
     require Exporter;
     @ISA = qw( Exporter );
@@ -275,10 +275,6 @@ sub _CAN ($$) {
     !! eval { ref $_[0] and $_[0]->can($_[1]) };
 }
 
-
-
-
-
 #####################################################################
 # Methods
 
@@ -324,10 +320,6 @@ sub setErrorHandler {
     $Archive::Zip::ErrorHandler = $errorHandler;
     return $oldErrorHandler;
 }
-
-
-
-
 
 ######################################################################
 # Private utility functions (not methods).
@@ -375,7 +367,7 @@ sub _binmode {
 
 # Attempt to guess whether file handle is seekable.
 # Because of problems with Windows, this only returns true when
-# the file handle is a real file.  
+# the file handle is a real file.
 sub _isSeekable {
     my $fh = shift;
     return 0 unless ref $fh;
@@ -403,7 +395,7 @@ sub _isSeekable {
         ) ? 1 : 0;
 }
 
-# Print to the filehandle, while making sure the pesky Perl special global 
+# Print to the filehandle, while making sure the pesky Perl special global
 # variables don't interfere.
 sub _print
 {
@@ -501,7 +493,7 @@ sub tempFile {
 }
 
 # Return the normalized directory name as used in a zip file (path
-# separators become slashes, etc.). 
+# separators become slashes, etc.).
 # Will translate internal slashes in path components (i.e. on Macs) to
 # underscores.  Discards volume names.
 # When $forceDir is set, returns paths with trailing slashes (or arrays
@@ -518,7 +510,7 @@ sub tempFile {
 # /a/b/         ('','a','b')    /a/b
 # c:\a\b\c.doc  ('','a','b','c.doc')    /a/b/c.doc      # on Windoze
 # "i/o maps:whatever"   ('i_o maps', 'whatever')  "i_o maps/whatever"   # on Macs
-sub _asZipDirName    
+sub _asZipDirName
 {
     my $name      = shift;
     my $forceDir  = shift;
@@ -537,7 +529,7 @@ sub _asZipDirName
 # Assume a directory if zip name has trailing slash.
 # Takes an optional volume name in FS format (like 'a:').
 #
-sub _asLocalName    
+sub _asLocalName
 {
     my $name   = shift;    # zip format
     my $volume = shift;
@@ -560,6 +552,8 @@ __END__
 
 =pod
 
+=encoding utf8
+
 =head1 NAME
 
 Archive::Zip - Provide an interface to ZIP archive files.
@@ -569,28 +563,28 @@ Archive::Zip - Provide an interface to ZIP archive files.
    # Create a Zip file
    use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
    my $zip = Archive::Zip->new();
-   
+
    # Add a directory
    my $dir_member = $zip->addDirectory( 'dirname/' );
-   
+
    # Add a file from a string with compression
    my $string_member = $zip->addString( 'This is a test', 'stringMember.txt' );
    $string_member->desiredCompressionMethod( COMPRESSION_DEFLATED );
-   
+
    # Add a file from disk
    my $file_member = $zip->addFile( 'xyz.pl', 'AnotherName.pl' );
-   
+
    # Save the Zip file
    unless ( $zip->writeToFileNamed('someZip.zip') == AZ_OK ) {
        die 'write error';
    }
-   
+
    # Read a Zip file
    my $somezip = Archive::Zip->new();
    unless ( $somezip->read( 'someZip.zip' ) == AZ_OK ) {
        die 'read error';
    }
-   
+
    # Change the compression type for a file in the Zip
    my $member = $somezip->memberNamed( 'stringMember.txt' );
    $member->desiredCompressionMethod( COMPRESSION_STORED );
@@ -650,7 +644,7 @@ if you call them with a single name.
 
 =head2 Archive::Zip Object Model
 
-=head2 Overview
+=head3 Overview
 
 Archive::Zip::Archive objects are what you ordinarily deal with.
 These maintain the structure of a zip file, without necessarily
@@ -722,9 +716,9 @@ as inline subroutines, using the C<use constant> pragma. They can be imported
 into your namespace using the C<:ERROR_CODES> tag:
 
   use Archive::Zip qw( :ERROR_CODES );
-  
+
   ...
-  
+
   unless ( $zip->read( 'myfile.zip' ) == AZ_OK ) {
       die "whoops!";
   }
@@ -771,10 +765,10 @@ compression method:
 
   my $member = $zip->memberNamed( 'xyz.txt' );
   $member->compressionMethod();    # return current compression
-  
+
   # set to read uncompressed
   $member->desiredCompressionMethod( COMPRESSION_STORED );
-  
+
   # set to read compressed
   $member->desiredCompressionMethod( COMPRESSION_DEFLATED );
 
@@ -805,26 +799,26 @@ The levels given can be:
 
 =over 4
 
-=item 0 or COMPRESSION_LEVEL_NONE
+=item * 0 or COMPRESSION_LEVEL_NONE
 
 This is the same as saying
 
   $member->desiredCompressionMethod( COMPRESSION_STORED );
 
-=item 1 .. 9
+=item * 1 .. 9
 
 1 gives the best speed and worst compression, and 9 gives the
 best compression and worst speed.
 
-=item COMPRESSION_LEVEL_FASTEST
+=item * COMPRESSION_LEVEL_FASTEST
 
 This is a synonym for level 1.
 
-=item COMPRESSION_LEVEL_BEST_COMPRESSION
+=item * COMPRESSION_LEVEL_BEST_COMPRESSION
 
 This is a synonym for level 9.
 
-=item COMPRESSION_LEVEL_DEFAULT
+=item * COMPRESSION_LEVEL_DEFAULT
 
 This gives a good compromise between speed and compression,
 and is currently equivalent to 6 (this is in the zlib code).
@@ -844,6 +838,8 @@ about this unless you're subclassing.
 =over 4
 
 =item new( [$fileName] )
+
+=item new( { filename => $fileName } )
 
 Make a new, empty zip archive.
 
@@ -874,6 +870,8 @@ methods. Do not call them as class methods:
 
 =item Archive::Zip::computeCRC32( $string [, $crc] )
 
+=item Archive::Zip::computeCRC32( { string => $string [, checksum => $crc ] } )
+
 This is a utility function that uses the Compress::Raw::Zlib CRC
 routine to compute a CRC-32. You can get the CRC of a string:
 
@@ -886,6 +884,8 @@ Or you can compute the running CRC:
     $crc = Archive::Zip::computeCRC32( 'ghijkl', $crc );
 
 =item Archive::Zip::setChunkSize( $number )
+
+=item Archive::Zip::setChunkSize( { chunkSize => $number } )
 
 Report or change chunk size used for reading and writing.
 This can make big differences in dealing with large files.
@@ -907,6 +907,8 @@ Returns the current chunk size:
 
 =item Archive::Zip::setErrorHandler( \&subroutine )
 
+=item Archive::Zip::setErrorHandler( { subroutine => \&subroutine } )
+
 Change the subroutine called with error strings. This
 defaults to \&Carp::carp, but you may want to change it to
 get the error strings. This is not exportable, so you must
@@ -923,7 +925,9 @@ not just set it to a number):
 
     $Carp::CarpLevel++;
 
-=item Archive::Zip::tempFile( [$tmpdir] )
+=item Archive::Zip::tempFile( [ $tmpdir ] )
+
+=item Archive::Zip::tempFile( { tempDir => $tmpdir } )
 
 Create a uniquely named temp file. It will be returned open
 for read/write. If C<$tmpdir> is given, it is used as the
@@ -966,10 +970,14 @@ Return a list of the (internal) file names of the zip members
 
 =item memberNamed( $string )
 
+=item memberNamed( { zipName => $string } )
+
 Return ref to member whose filename equals given filename or
 undef. C<$string> must be in Zip (Unix) filename format.
 
 =item membersMatching( $regex )
+
+=item membersMatching( { regex => $regex } )
 
 Return array of members whose filenames match given regular
 expression in list context. Returns number of matching
@@ -1016,7 +1024,9 @@ Returns the offset into the zip file where the CD begins. Not
 used for writing zips, but might be interesting if you read a
 zip in.
 
-=item zipfileComment( [$string] )
+=item zipfileComment( [ $string ] )
+
+=item zipfileComment( [ { comment => $string } ] )
 
 Get or set the zipfile comment. Returns the old comment.
 
@@ -1060,11 +1070,16 @@ that names be unique within a zip (this is not enforced).
 
 =item removeMember( $memberOrName )
 
+=item removeMember( { memberOrZipName => $memberOrName } )
+
 Remove and return the given member, or match its name and
 remove it. Returns undef if member or name doesn't exist in this
 Zip. No-op if member does not belong to this zip.
 
 =item replaceMember( $memberOrName, $newMember )
+
+=item replaceMember( { memberOrZipName => $memberOrName,
+    newMember => $newMember } )
 
 Remove and return the given member, or match its name and
 remove it. Replace with new member. Returns undef if member or
@@ -1080,6 +1095,9 @@ member of the zip being modified.
 
 =item extractMember( $memberOrName [, $extractedName ] )
 
+=item extractMember( { memberOrZipName => $memberOrName
+    [, name => $extractedName ] } )
+
 Extract the given member, or match its name and extract it.
 Returns undef if member doesn't exist in this Zip. If
 optional second arg is given, use it as the name of the
@@ -1093,6 +1111,9 @@ on success.
 
 =item extractMemberWithoutPaths( $memberOrName [, $extractedName ] )
 
+=item extractMemberWithoutPaths( { memberOrZipName => $memberOrName
+    [, name => $extractedName ] } )
+
 Extract the given member, or match its name and extract it.
 Does not use path information (extracts into the current
 directory). Returns undef if member doesn't exist in this
@@ -1105,6 +1126,8 @@ on success.
 
 =item addMember( $member )
 
+=item addMember( { member => $member } )
+
 Append a member (possibly from another zip file) to the zip
 file. Returns the new member. Generally, you will use
 addFile(), addDirectory(), addFileOrDirectory(), addString(),
@@ -1116,13 +1139,18 @@ or read() to add members.
 
 =item updateMember( $memberOrName, $fileName )
 
+=item updateMember( { memberOrZipName => $memberOrName, name => $fileName } )
+
 Update a single member from the file or directory named C<$fileName>.
 Returns the (possibly added or updated) member, if any; C<undef> on
 errors.
 The comparison is based on C<lastModTime()> and (in the case of a
 non-directory) the size of the file.
 
-=item addFile( $fileName [, $newName ] )
+=item addFile( $fileName [, $newName, $compressionLevel ] )
+
+=item addFile( { filename => $fileName
+    [, zipName => $newName, compressionLevel => $compressionLevel } ] )
 
 Append a member whose data comes from an external file,
 returning the member or undef. The member will have its file
@@ -1147,6 +1175,8 @@ harder to use.
 
 =item addDirectory( $directoryName [, $fileName ] )
 
+=item addDirectory( { directoryName => $directoryName
+    [, zipName => $fileName ] } )
 
 
 Append a member created from the given directory name. The
@@ -1160,8 +1190,10 @@ member (which defaults to C<$directoryName>). If given, it
 must be in Zip (Unix) format.
 Returns the new member.
 
-=item addFileOrDirectory( $name [, $newName ] )
+=item addFileOrDirectory( $name [, $newName, $compressionLevel ] )
 
+=item addFileOrDirectory( { name => $name [, zipName => $newName,
+    compressionLevel => $compressionLevel ] } )
 
 
 Append a member from the file or directory named $name. If
@@ -1172,9 +1204,10 @@ The optional second argument sets the name of the archive
 member (which defaults to C<$name>). If given, it must be in
 Zip (Unix) format.
 
-=item addString( $stringOrStringRef, $name )
+=item addString( $stringOrStringRef, $name, [$compressionLevel] )
 
-
+=item addString( { string => $stringOrStringRef [, zipName => $name,
+    compressionLevel => $compressionLevel ] } )
 
 Append a member created from the given string or string
 reference. The name is given by the second argument.
@@ -1186,6 +1219,8 @@ defaults.
 
 =item contents( $memberOrMemberName [, $newContents ] )
 
+=item contents( { memberOrZipName => $memberOrMemberName
+    [, contents => $newContents ] } )
 
 
 Returns the uncompressed data for a particular member, or
@@ -1214,7 +1249,7 @@ one.
 
 =item writeToFileNamed( $fileName )
 
-
+=item writeToFileNamed( { fileName => $fileName } )
 
 Write a zip archive to named file. Returns C<AZ_OK> on
 success.
@@ -1265,6 +1300,9 @@ archive.
 
 =item writeCentralDirectory( $fileHandle [, $offset ] )
 
+=item writeCentralDirectory( { fileHandle => $fileHandle
+    [, offset => $offset ] } )
+
 Writes the central directory structure to the given file
 handle.
 
@@ -1290,6 +1328,8 @@ directory:
 
 =item overwriteAs( $newName )
 
+=item overwriteAs( { filename => $newName } )
+
 Write the zip to the specified file, as safely as possible.
 This is done by first writing to a temp file, then renaming
 the original if it exists, then renaming the temp file, then
@@ -1304,6 +1344,8 @@ error.
 
 =item read( $fileName )
 
+=item read( { filename => $fileName } )
+
 Read zipfile headers from a zip file, appending new members.
 Returns C<AZ_OK> or error code.
 
@@ -1311,6 +1353,8 @@ Returns C<AZ_OK> or error code.
     my $status = $zipFile->read( '/some/FileName.zip' );
 
 =item readFromFileHandle( $fileHandle, $filename )
+
+=item readFromFileHandle( { fileHandle => $fileHandle, filename => $filename } )
 
 Read zipfile headers from an already-opened file handle,
 appending new members. Does not close the file handle.
@@ -1335,31 +1379,34 @@ A usage example:
 
   use Archive::Zip;
   my $zip = Archive::Zip->new();
-  
+
   # add all readable files and directories below . as xyz/*
   $zip->addTree( '.', 'xyz' );
-  
+
   # add all readable plain files below /abc as def/*
   $zip->addTree( '/abc', 'def', sub { -f && -r } );
-  
+
   # add all .c files below /tmp as stuff/*
   $zip->addTreeMatching( '/tmp', 'stuff', '\.c$' );
-  
+
   # add all .o files below /tmp as stuff/* if they aren't writable
   $zip->addTreeMatching( '/tmp', 'stuff', '\.o$', sub { ! -w } );
-  
+
   # add all .so files below /tmp that are smaller than 200 bytes as stuff/*
   $zip->addTreeMatching( '/tmp', 'stuff', '\.o$', sub { -s < 200 } );
-  
+
   # and write them into a file
   $zip->writeToFileNamed('xxx.zip');
-  
+
   # now extract the same files into /tmpx
   $zip->extractTree( 'stuff', '/tmpx' );
 
 =over 4
 
-=item $zip->addTree( $root, $dest [,$pred] ) -- Add tree of files to a zip
+=item $zip->addTree( $root, $dest [, $pred, $compressionLevel ] ) -- Add tree of files to a zip
+
+=item $zip->addTree( { root => $root, zipName => $dest [, select => $pred,
+    compressionLevel => $compressionLevel ] )
 
 C<$root> is the root of the tree of files and directories to be
 added. It is a valid directory name on your system. C<$dest> is
@@ -1400,7 +1447,10 @@ check for the validity of filenames.
 Note that you generally I<don't> want to make zip archive member names
 absolute.
 
-=item $zip->addTreeMatching( $root, $dest, $pattern [,$pred] )
+=item $zip->addTreeMatching( $root, $dest, $pattern [, $pred, $compressionLevel ] )
+
+=item $zip->addTreeMatching( { root => $root, zipName => $dest, pattern =>
+    $pattern [, select => $pred, compressionLevel => $compressionLevel ] } )
 
 $root is the root of the tree of files and directories to be
 added $dest is the name for the root in the zip file (undef
@@ -1425,9 +1475,10 @@ a subdirectory named C<xyz>, do this:
 Returns AZ_OK on success. Note that this will not follow
 symbolic links to directories.
 
-=item $zip->updateTree( $root, [ $dest, [ $pred [, $mirror]]] );
+=item $zip->updateTree( $root [, $dest , $pred , $mirror, $compressionLevel ] );
 
-
+=item $zip->updateTree( { root => $root [, zipName => $dest, select => $pred,
+    mirror => $mirror, compressionLevel => $compressionLevel ] } );
 
 Update a zip file from a directory tree.
 
@@ -1438,28 +1489,14 @@ file, and whether it has been changed.
 If the fourth argument C<$mirror> is true, then delete all my members
 if corresponding files weren't found.
 
-
 Returns an error code or AZ_OK if all is well.
 
-=item $zip->extractTree()
+=item $zip->extractTree( [ $root, $dest, $volume } ] )
 
-
-
-=item $zip->extractTree( $root )
-
-
-
-=item $zip->extractTree( $root, $dest )
-
-
-
-=item $zip->extractTree( $root, $dest, $volume )
-
-
+=item $zip->extractTree( [ { root => $root, zipName => $dest, volume => $volume } ] )
 
 If you don't give any arguments at all, will extract all the
 files in the zip with their original names.
-
 
 If you supply one argument for C<$root>, C<extractTree> will extract
 all the members whose names start with C<$root> into the current
@@ -1472,12 +1509,9 @@ For instance,
 when applied to a zip containing the files:
 a/x a/b/c ax/d/e d/e will extract:
 
-
 a/x as ./x
 
-
 a/b/c as ./b/c
-
 
 If you give two arguments, C<extractTree> extracts all the members
 whose names start with C<$root>. It will translate C<$root> into
@@ -1490,12 +1524,9 @@ For instance,
 when applied to a zip containing the files:
 a/x a/b/c ax/d/e d/e will extract:
 
-
 a/x to d/e/x
 
-
 a/b/c to d/e/b/c and ignore ax/d/e and d/e
-
 
 If you give three arguments, C<extractTree> extracts all the members
 whose names start with C<$root>. It will translate C<$root> into
@@ -1503,12 +1534,9 @@ C<$dest> to construct the destination file name, and then it will
 convert to local file system format, using C<$volume> as the name of
 the destination volume.
 
-
 C<$root> and C<$dest> are in Zip (Unix) format.
 
-
 C<$volume> is in local file system format.
-
 
 For instance, under Windows,
 
@@ -1517,12 +1545,9 @@ For instance, under Windows,
 when applied to a zip containing the files:
 a/x a/b/c ax/d/e d/e will extract:
 
-
 a/x to f:d/e/x
 
-
 a/b/c to f:d/e/b/c and ignore ax/d/e and d/e
-
 
 If you want absolute paths (the prior example used paths relative to
 the current directory on the destination volume, you can specify these
@@ -1533,9 +1558,7 @@ in C<$dest>:
 when applied to a zip containing the files:
 a/x a/b/c ax/d/e d/e will extract:
 
-
 a/x to f:\d\e\x
-
 
 a/b/c to f:\d\e\b\c and ignore ax/d/e and d/e
 
@@ -1543,11 +1566,27 @@ Returns an error code or AZ_OK if everything worked OK.
 
 =back
 
+=head1 Archive::Zip Global Variables
+
+=over 4
+
+=item $Archive::Zip::UNICODE
+
+This variable governs how unicode file and directory names are added
+to or extracted from an archive. If set, file and directory names are considered
+to be UTF-8 encoded. This is I<EXPERIMENTAL AND BUGGY (there are some edge cases
+on Win32)>. Please report problems.
+
+    {
+        local $Archive::Zip::UNICODE = 1;
+        $zip->addFile('Déjà vu.txt');
+    }
+
+=back
+
 =head1 MEMBER OPERATIONS
 
-
 =head2 Member Class Methods
-
 
 Several constructors allow you to construct members without adding
 them to a zip archive. These work the same as the addFile(),
@@ -1556,19 +1595,19 @@ but they don't add the new members to a zip.
 
 =over 4
 
-=item Archive::Zip::Member->newFromString( $stringOrStringRef [, $fileName] )
+=item Archive::Zip::Member->newFromString( $stringOrStringRef [, $fileName ] )
 
-
+=item Archive::Zip::Member->newFromString( { string => $stringOrStringRef
+    [, zipName => $fileName ] )
 
 Construct a new member from the given string. Returns undef
 on error.
 
     my $member = Archive::Zip::Member->newFromString( 'This is a test',
-                                                 'xyz.txt' );
 
-=item newFromFile( $fileName )
+=item newFromFile( $fileName [, $zipName ] )
 
-
+=item newFromFile( { filename => $fileName [, zipName => $zipName ] } )
 
 Construct a new member from the given file. Returns undef on
 error.
@@ -1577,17 +1616,16 @@ error.
 
 =item newDirectoryNamed( $directoryName [, $zipname ] )
 
-
+=item newDirectoryNamed( { directoryName => $directoryName
+    [, zipName => $zipname ] } )
 
 Construct a new member from the given directory.
 C<$directoryName> must be a valid name on your file system; it doesn't
 have to exist.
 
-
 If given, C<$zipname> will be the name of the zip member; it must be a
 valid Zip (Unix) name. If not given, it will be converted from
 C<$directoryName>.
-
 
 Returns undef on error.
 
@@ -1597,40 +1635,31 @@ Returns undef on error.
 
 =head2 Member Simple accessors
 
-
 These methods get (and/or set) member attribute values.
 
 =over 4
 
 =item versionMadeBy()
 
-
-
 Gets the field from the member header.
 
-=item fileAttributeFormat( [$format] )
+=item fileAttributeFormat( [ $format ] )
 
-
+=item fileAttributeFormat( [ { format => $format ] } )
 
 Gets or sets the field from the member header. These are
 C<FA_*> values.
 
 =item versionNeededToExtract()
 
-
-
 Gets the field from the member header.
 
 =item bitFlag()
-
-
 
 Gets the general purpose bit field from the member header.
 This is where the C<GPBF_*> bits live.
 
 =item compressionMethod()
-
-
 
 Returns the member compression method. This is the method
 that is currently being used to compress the member data.
@@ -1640,9 +1669,9 @@ from a zip file. However, this module can only handle members
 whose data is in COMPRESSION_STORED or COMPRESSION_DEFLATED
 format.
 
-=item desiredCompressionMethod( [$method] )
+=item desiredCompressionMethod( [ $method ] )
 
-
+=item desiredCompressionMethod( [ { compressionMethod => $method } ] )
 
 Get or set the member's C<desiredCompressionMethod>. This is
 the compression method that will be used when the member is
@@ -1653,9 +1682,9 @@ member desiredCompressionLevel to 0; changing to
 COMPRESSION_DEFLATED will change the member
 desiredCompressionLevel to COMPRESSION_LEVEL_DEFAULT.
 
-=item desiredCompressionLevel( [$method] )
+=item desiredCompressionLevel( [ $level ] )
 
-
+=item desiredCompressionLevel( [ { compressionLevel => $level } ] )
 
 Get or set the member's desiredCompressionLevel This is the
 method that will be used to write. Returns prior
@@ -1669,13 +1698,9 @@ to COMPRESSION_DEFLATED.
 
 =item externalFileName()
 
-
-
 Return the member's external file name, if any, or undef.
 
 =item fileName()
-
-
 
 Get or set the member's internal filename. Returns the
 (possibly new) filename. Names will have backslashes
@@ -1684,14 +1709,10 @@ consecutive slashes converted to single ones.
 
 =item lastModFileDateTime()
 
-
-
 Return the member's last modification date/time stamp in
 MS-DOS format.
 
 =item lastModTime()
-
-
 
 Return the member's last modification date/time stamp,
 converted to unix localtime format.
@@ -1715,7 +1736,9 @@ header. This is only set for members read from a zip file.
 Return member attributes as read from the ZIP file. Note that
 these are NOT UNIX!
 
-=item unixFileAttributes( [$newAttributes] )
+=item unixFileAttributes( [ $newAttributes ] )
+
+=item unixFileAttributes( [ { attributes => $newAttributes } ] )
 
 Get or set the member's file attributes using UNIX file
 attributes. Returns old attributes.
@@ -1726,14 +1749,18 @@ Note that the return value has more than just the file
 permissions, so you will have to mask off the lowest bits for
 comparisions.
 
-=item localExtraField( [$newField] )
+=item localExtraField( [ $newField ] )
+
+=item localExtraField( [ { field => $newField } ] )
 
 Gets or sets the extra field that was read from the local
 header. This is not set for a member from a zip file until
 after the member has been written out. The extra field must
 be in the proper format.
 
-=item cdExtraField( [$newField] )
+=item cdExtraField( [ $newField ] )
+
+=item cdExtraField( [ { field => $newField } ] )
 
 Gets or sets the extra field that was read from the central
 directory header. The extra field must be in the proper
@@ -1743,7 +1770,9 @@ format.
 
 Return both local and CD extra fields, concatenated.
 
-=item fileComment( [$newComment] )
+=item fileComment( [ $newComment ] )
+
+=item fileComment( [ { comment => $newComment } ] )
 
 Get or set the member's file comment.
 
@@ -1784,7 +1813,9 @@ Return true if this member is encrypted. The Archive::Zip
 module does not currently create or extract encrypted
 members.
 
-=item isTextFile( [$flag] )
+=item isTextFile( [ $flag ] )
+
+=item isTextFile( [ { flag => $flag } ] )
 
 Returns true if I am a text file. Also can set the status if
 given an argument (then returns old state). Note that this
@@ -1801,6 +1832,8 @@ extraction or storage. That is, bytes are stored in native
 format whether or not they came from a text file.
 
 =item extractToFileNamed( $fileName )
+
+=item extractToFileNamed( { name => $fileName } )
 
 Extract me to a file with the given name. The file will be
 created with default modes. Directories will be created as
@@ -1848,7 +1881,9 @@ in chunks using these methods:
 
 =over 4
 
-=item readChunk( [$chunkSize] )
+=item readChunk( [ $chunkSize ] )
+
+=item readChunk( [ { chunkSize => $chunkSize } ] )
 
 This reads the next chunk of given size from the member's
 data stream and compresses or uncompresses it as necessary,
@@ -1895,6 +1930,8 @@ change the class of the member):
     $member->contents( "this is my new contents" );
 
 =item extractToFileHandle( $fh )
+
+=item extractToFileHandle( { fileHandle => $fh } )
 
 Extract (and uncompress, if necessary) the member's contents
 to the given file handle. Return AZ_OK on success.
@@ -2036,7 +2073,7 @@ Originally by Ned Konz E<lt>nedkonz@cpan.orgE<gt>.
 
 =head1 COPYRIGHT
 
-Some parts copyright 2006 - 2009 Adam Kennedy.
+Some parts copyright 2006 - 2010 Adam Kennedy.
 
 Some parts copyright 2005 Steve Peters.
 
@@ -2054,6 +2091,6 @@ L<Compress::Raw::Zlib>, L<Archive::Tar>, L<Archive::Extract>
 
 There is a Japanese translation of this
 document at L<http://www.memb.jp/~deq/perl/doc-ja/Archive-Zip.html>
-that was done by DEQ E<lt>deq@oct.zaq.ne.jpE<gt> . Thanks! 
+that was done by DEQ E<lt>deq@oct.zaq.ne.jpE<gt> . Thanks!
 
 =cut
