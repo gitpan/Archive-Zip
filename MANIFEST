@@ -48,6 +48,7 @@ t/10_chmod.t
 t/11_explorer.t
 t/12_bug_47223.t
 t/13_bug_46303.t
+t/14_leading_separator.t
 t/badjpeg/expected.jpg
 t/badjpeg/source.zip
 t/common.pl

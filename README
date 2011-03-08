@@ -1204,7 +1204,7 @@ TO DO
 
     * Handle tainted paths correctly
 
-    * Work on better compatability with other IO:: modules
+    * Work on better compatibility with other IO:: modules
 
 SUPPORT
     Bugs should be reported via the CPAN bug tracker
@@ -1223,7 +1223,7 @@ AUTHOR
     Originally by Ned Konz <nedkonz@cpan.org>.
 
 COPYRIGHT
-    Some parts copyright 2006 - 2010 Adam Kennedy.
+    Some parts copyright 2006 - 2011 Adam Kennedy.
 
     Some parts copyright 2005 Steve Peters.
 
@@ -1237,8 +1237,4 @@ SEE ALSO
     read Zip archive members as if they were files.
 
     Compress::Raw::Zlib, Archive::Tar, Archive::Extract
-
-    There is a Japanese translation of this document at
-    <http://www.memb.jp/~deq/perl/doc-ja/Archive-Zip.html> that was done by
-    DEQ <deq@oct.zaq.ne.jp> . Thanks!
 

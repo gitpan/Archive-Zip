@@ -16,7 +16,7 @@ use FileHandle          ();
 
 use vars qw( $VERSION @ISA );
 BEGIN {
-    $VERSION = '1.31_01';
+    $VERSION = '1.31_02';
 
     require Exporter;
     @ISA = qw( Exporter );
@@ -507,8 +507,8 @@ sub tempFile {
 # ./a/b         ('a','b')   a/b
 # ./a/b/        ('a','b')   a/b
 # a/b/          ('a','b')   a/b
-# /a/b/         ('','a','b')    /a/b
-# c:\a\b\c.doc  ('','a','b','c.doc')    /a/b/c.doc      # on Windoze
+# /a/b/         ('','a','b')    a/b
+# c:\a\b\c.doc  ('','a','b','c.doc')    a/b/c.doc      # on Windows
 # "i/o maps:whatever"   ('i_o maps', 'whatever')  "i_o maps/whatever"   # on Macs
 sub _asZipDirName
 {
@@ -522,7 +522,18 @@ sub _asZipDirName
     if ( @dirs > 0 ) { pop (@dirs) unless $dirs[-1] }   # remove empty component
     push ( @dirs, defined($file) ? $file : '' );
     #return wantarray ? @dirs : join ( '/', @dirs );
-    return join ( '/', @dirs );
+
+    my $normalised_path = join '/', @dirs;
+
+    # Leading directory separators should not be stored in zip archives.
+    # Example:
+    #   C:\a\b\c\      a/b/c
+    #   C:\a\b\c.txt   a/b/c.txt
+    #   /a/b/c/        a/b/c
+    #   /a/b/c.txt     a/b/c.txt
+    $normalised_path =~ s{^/}{};  # remove leading separator
+
+    return $normalised_path;
 }
 
 # Return an absolute local name for a zip name.
@@ -2051,7 +2062,7 @@ due to back-compatibility issues.
 
 * Handle tainted paths correctly
 
-* Work on better compatability with other IO:: modules
+* Work on better compatibility with other IO:: modules
 
 =head1 SUPPORT
 
@@ -2073,7 +2084,7 @@ Originally by Ned Konz E<lt>nedkonz@cpan.orgE<gt>.
 
 =head1 COPYRIGHT
 
-Some parts copyright 2006 - 2010 Adam Kennedy.
+Some parts copyright 2006 - 2011 Adam Kennedy.
 
 Some parts copyright 2005 Steve Peters.
 
@@ -2088,9 +2099,5 @@ Look at L<Archive::Zip::MemberRead> which is a wrapper that allows one to
 read Zip archive members as if they were files.
 
 L<Compress::Raw::Zlib>, L<Archive::Tar>, L<Archive::Extract>
-
-There is a Japanese translation of this
-document at L<http://www.memb.jp/~deq/perl/doc-ja/Archive-Zip.html>
-that was done by DEQ E<lt>deq@oct.zaq.ne.jpE<gt> . Thanks!
 
 =cut
