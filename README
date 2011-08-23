@@ -320,7 +320,7 @@ Archive::Zip Methods
         environment variable. But see the File::Spec documentation for your
         system. Note that on many systems, if you're running in taint mode,
         then you must make sure that $ENV{TMPDIR} is untainted for it to be
-        used. Will *NOT* create $tmpdir if it doesn't exist (this is a
+        used. Will *NOT* create $tmpdir if it does not exist (this is a
         change from prior versions!). Returns file handle and name:
 
             my ($fh, $name) = Archive::Zip::tempFile();
@@ -422,14 +422,14 @@ Archive::Zip Methods
     removeMember( $memberOrName )
     removeMember( { memberOrZipName => $memberOrName } )
         Remove and return the given member, or match its name and remove it.
-        Returns undef if member or name doesn't exist in this Zip. No-op if
+        Returns undef if member or name does not exist in this Zip. No-op if
         member does not belong to this zip.
 
     replaceMember( $memberOrName, $newMember )
     replaceMember( { memberOrZipName => $memberOrName, newMember =>
     $newMember } )
         Remove and return the given member, or match its name and remove it.
-        Replace with new member. Returns undef if member or name doesn't
+        Replace with new member. Returns undef if member or name does not
         exist in this Zip, or if $newMember is undefined.
 
         It is an (undiagnosed) error to provide a $newMember that is a
@@ -444,8 +444,8 @@ Archive::Zip Methods
     extractMember( { memberOrZipName => $memberOrName [, name =>
     $extractedName ] } )
         Extract the given member, or match its name and extract it. Returns
-        undef if member doesn't exist in this Zip. If optional second arg is
-        given, use it as the name of the extracted member. Otherwise, the
+        undef if member does not exist in this Zip. If optional second arg
+        is given, use it as the name of the extracted member. Otherwise, the
         internal filename of the member is used as the name of the extracted
         file or directory. If you pass $extractedName, it should be in the
         local file system's format. All necessary directories will be
@@ -456,11 +456,11 @@ Archive::Zip Methods
     $extractedName ] } )
         Extract the given member, or match its name and extract it. Does not
         use path information (extracts into the current directory). Returns
-        undef if member doesn't exist in this Zip. If optional second arg is
-        given, use it as the name of the extracted member (its paths will be
-        deleted too). Otherwise, the internal filename of the member (minus
-        paths) is used as the name of the extracted file or directory.
-        Returns "AZ_OK" on success.
+        undef if member does not exist in this Zip. If optional second arg
+        is given, use it as the name of the extracted member (its paths will
+        be deleted too). Otherwise, the internal filename of the member
+        (minus paths) is used as the name of the extracted file or
+        directory. Returns "AZ_OK" on success.
 
     addMember( $member )
     addMember( { member => $member } )
@@ -496,8 +496,8 @@ Archive::Zip Methods
         set if the contents appears to be text (as returned by the "-T" perl
         operator).
 
-        *NOTE* that you shouldn't (generally) use absolute path names in zip
-        member names, as this will cause problems with some zip tools as
+        *NOTE* that you should not (generally) use absolute path names in
+        zip member names, as this will cause problems with some zip tools as
         well as introduce a security hole and make the zip harder to use.
 
     addDirectory( $directoryName [, $fileName ] )
@@ -730,13 +730,13 @@ Archive::Zip Methods
         select files: it is passed the name of the prospective file or
         directory in $_, and if it returns true, the file or directory will
         be included. The default is to add all readable files and
-        directories. To add all files in and below the current dirctory
+        directories. To add all files in and below the current directory
         whose names end in ".pl", and make them extract into a subdirectory
         named "xyz", do this:
 
           $zip->addTreeMatching( '.', 'xyz', '\.pl$' )
 
-        To add all *writable* files in and below the dirctory named "/abc"
+        To add all *writable* files in and below the directory named "/abc"
         whose names end in ".pl", and make them extract into a subdirectory
         named "xyz", do this:
 
@@ -756,7 +756,7 @@ Archive::Zip Methods
         zip file, and whether it has been changed.
 
         If the fourth argument $mirror is true, then delete all my members
-        if corresponding files weren't found.
+        if corresponding files were not found.
 
         Returns an error code or AZ_OK if all is well.
 
@@ -832,7 +832,7 @@ Archive::Zip Methods
 
 Archive::Zip Global Variables
     $Archive::Zip::UNICODE
-        This variable governs how unicode file and directory names are added
+        This variable governs how Unicode file and directory names are added
         to or extracted from an archive. If set, file and directory names
         are considered to be UTF-8 encoded. This is *EXPERIMENTAL AND BUGGY
         (there are some edge cases on Win32)*. Please report problems.
@@ -867,7 +867,7 @@ MEMBER OPERATIONS
     newDirectoryNamed( { directoryName => $directoryName [, zipName =>
     $zipname ] } )
         Construct a new member from the given directory. $directoryName must
-        be a valid name on your file system; it doesn't have to exist.
+        be a valid name on your file system; it does not have to exist.
 
         If given, $zipname will be the name of the zip member; it must be a
         valid Zip (Unix) name. If not given, it will be converted from
@@ -964,7 +964,7 @@ MEMBER OPERATIONS
             my $oldAttribs = $member->unixFileAttributes( 0666 );
 
         Note that the return value has more than just the file permissions,
-        so you will have to mask off the lowest bits for comparisions.
+        so you will have to mask off the lowest bits for comparisons.
 
     localExtraField( [ $newField ] )
     localExtraField( [ { field => $newField } ] )
@@ -1009,9 +1009,23 @@ MEMBER OPERATIONS
     uncompressedSize()
         Return the uncompressed size for this member.
 
+    password( [ $password ] )
+        Returns the password for this member to be used on decryption. If
+        $password is given, it will set the password for the decryption.
+
     isEncrypted()
         Return true if this member is encrypted. The Archive::Zip module
-        does not currently create or extract encrypted members.
+        does not currently support creation of encrypted members. Decryption
+        works more or less like this:
+
+          my $zip = Archive::Zip->new;
+          $zip->read ("encrypted.zip");
+          for my $m (map { $zip->memberNamed ($_) } $zip->memberNames) {
+              $m->password ("secret");
+              $m->contents;  # is "" when password was wrong
+
+        That shows that the password has to be set per member, and not per
+        archive. This might change in the future.
 
     isTextFile( [ $flag ] )
     isTextFile( [ { flag => $flag } ] )
@@ -1081,7 +1095,7 @@ MEMBER OPERATIONS
     rewindData()
         Rewind data and set up for reading data streams or writing zip
         files. Can take options for "inflateInit()" or "deflateInit()", but
-        this isn't likely to be necessary. Subclass overrides should call
+        this is not likely to be necessary. Subclass overrides should call
         this method. Returns "AZ_OK" on success.
 
     endRead()
@@ -1089,7 +1103,7 @@ MEMBER OPERATIONS
         called to close files, etc. Returns AZ_OK on success.
 
     readIsDone()
-        Return true if the read has run out of data or errored out.
+        Return true if the read has run out of data or encountered an error.
 
     contents()
         Return the entire uncompressed member data or undef in scalar
@@ -1186,12 +1200,17 @@ BUGS AND CAVEATS
     as IO::Scalar itself cannot change the way it is implemented due to
     back-compatibility issues.
 
+  Wrong password for encrypted members
+    When an encrypted member is read using the wrong password, you currently
+    have to re-read the entire archive to try again with the correct
+    password.
+
 TO DO
     * auto-choosing storing vs compression
 
     * extra field hooks (see notes.txt)
 
-    * check for dups on addition/renaming?
+    * check for duplicates on addition/renaming?
 
     * Text file extraction (line end translation)
 
@@ -1205,6 +1224,10 @@ TO DO
     * Handle tainted paths correctly
 
     * Work on better compatibility with other IO:: modules
+
+    * Support encryption
+
+    * More user-friendly decryption
 
 SUPPORT
     Bugs should be reported via the CPAN bug tracker

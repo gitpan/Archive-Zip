@@ -4,7 +4,7 @@ use strict;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.31_02';
+    $VERSION = '1.31_03';
     @ISA     = qw ( Archive::Zip::FileMember );
 }
 
@@ -90,7 +90,7 @@ sub _seekToLocalHeader {
 }
 
 # Because I'm going to delete the file handle, read the local file
-# header if the file handle is seekable. If it isn't, I assume that
+# header if the file handle is seekable. If it is not, I assume that
 # I've already read the local header.
 # Return ( $status, $self )
 
@@ -185,6 +185,12 @@ sub _skipLocalFileHeader {
 
         my $status = $self->_readDataDescriptor();
         return $status unless $status == AZ_OK;
+
+	# The buffer withe encrypted data is prefixed with a new
+	# encrypted 12 byte header. The size only changes when
+	# the buffer is also compressed
+	$self->isEncrypted && $oldUncompressedSize > $self->{uncompressedSize} and
+	    $oldUncompressedSize -= DATA_DESCRIPTOR_LENGTH;
 
         return _formatError(
             "CRC or size mismatch while skipping data descriptor")
