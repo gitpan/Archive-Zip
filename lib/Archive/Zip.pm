@@ -1,10 +1,7 @@
 package Archive::Zip;
 
+use 5.006;
 use strict;
-BEGIN {
-    require 5.004;
-}
-use UNIVERSAL           ();
 use Carp                ();
 use Cwd                 ();
 use IO::File            ();
@@ -16,7 +13,7 @@ use FileHandle          ();
 
 use vars qw( $VERSION @ISA );
 BEGIN {
-    $VERSION = '1.31_03';
+    $VERSION = '1.31_04';
 
     require Exporter;
     @ISA = qw( Exporter );
@@ -275,6 +272,10 @@ sub _CAN ($$) {
     !! eval { ref $_[0] and $_[0]->can($_[1]) };
 }
 
+
+
+
+
 #####################################################################
 # Methods
 
@@ -320,6 +321,10 @@ sub setErrorHandler {
     $Archive::Zip::ErrorHandler = $errorHandler;
     return $oldErrorHandler;
 }
+
+
+
+
 
 ######################################################################
 # Private utility functions (not methods).
@@ -2107,7 +2112,7 @@ Originally by Ned Konz E<lt>nedkonz@cpan.orgE<gt>.
 
 =head1 COPYRIGHT
 
-Some parts copyright 2006 - 2011 Adam Kennedy.
+Some parts copyright 2006 - 2012 Adam Kennedy.
 
 Some parts copyright 2005 Steve Peters.
 

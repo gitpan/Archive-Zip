@@ -6,7 +6,7 @@ use strict;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.31_03';
+    $VERSION = '1.31_04';
     @ISA     = qw( Archive::Zip );
 
     if ( $^O eq 'MSWin32' ) {
@@ -1066,6 +1066,12 @@ sub _writeToFileHandle {
           and ($self->compressionMethod() == COMPRESSION_STORED
             or $self->desiredCompressionMethod() == COMPRESSION_DEFLATED )
     );
+
+    # Set both compressedSize and uncompressedSize to 0 if either of them is 0
+    if ( $self->uncompressedSize == 0 || $self->uncompressedSize == 0 ) {
+        $self->{'compressedSize'}   = 0;
+        $self->{'uncompressedSize'} = 0;
+    }
 
     my $shouldWriteDataDescriptor =
       ( $headerFieldsUnknown and not $fhIsSeekable );
