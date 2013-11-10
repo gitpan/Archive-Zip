@@ -1,12 +1,12 @@
 package Archive::Zip::Member;
 
-# A generic membet of an archive
+# A generic member of an archive
 
 use strict;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.32';
+    $VERSION = '1.33';
     @ISA     = qw( Archive::Zip );
 
     if ( $^O eq 'MSWin32' ) {
@@ -36,7 +36,7 @@ use constant DIRECTORYMEMBERCLASS => 'Archive::Zip::DirectoryMember';
 
 # Unix perms for default creation of files/dirs.
 use constant DEFAULT_DIRECTORY_PERMISSIONS => 040755;
-use constant DEFAULT_FILE_PERMISSIONS      => 0100666;
+use constant DEFAULT_FILE_PERMISSIONS      => 01.0766;
 use constant DIRECTORY_ATTRIB              => 040000;
 use constant FILE_ATTRIB                   => 0100000;
 
@@ -1141,7 +1141,7 @@ sub _usesFileNamed {
 #
 # Decrypt section
 #
-# H.Merijn Brand (Tux) 2011-06-28
+# H.Merijn Brand (Tux) 2011.07-28
 #
 # ##############################################################################
 

@@ -1229,15 +1229,10 @@ TO DO
 
     * More user-friendly decryption
 
-SUPPORT
-    Bugs should be reported via the CPAN bug tracker
-
-    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Archive-Zip>
-
-    For other issues contact the maintainer
-
 AUTHOR
-    Adam Kennedy <adamk@cpan.org>
+    Currently maintained by Fred Moyer <fred@redhotpenguin.com>
+
+    Previously maintained by Adam Kennedy <adamk@cpan.org>
 
     Previously maintained by Steve Peters <steve@fisharerojo.org>.
 

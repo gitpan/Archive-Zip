@@ -4,7 +4,7 @@
       "Ned Konz <perl@bike-nomad.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "ExtUtils::MakeMaker version 6.6302, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "ExtUtils::MakeMaker version 6.6302, CPAN::Meta::Converter version 2.120630",
    "license" : [
       "perl_5"
    ],
@@ -49,12 +49,9 @@
    },
    "release_status" : "stable",
    "resources" : {
-      "bugtracker" : {
-         "web" : "http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Archive-Zip"
-      },
       "repository" : {
-         "url" : "http://svn.ali.as/cpan/trunk/Archive-Zip"
+         "url" : "https://github.com/redhotpenguin/perl-Archive-Zip"
       }
    },
-   "version" : "1.32"
+   "version" : "1.33"
 }
