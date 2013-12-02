@@ -9,7 +9,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile1(
 	META_MERGE => {
 		resources => {
-			repository => 'https://github.com/redhotpenguin/perl-Archive-Zip',
+			repository => 'https://github.com/redhotpenguin/perl-Archive-Zip-svn',
 		},
 	},
 	NAME          => 'Archive::Zip',
@@ -35,7 +35,7 @@ WriteMakefile1(
 		'Test::More'          => '0.42',
 	},
 	clean => {
-		FILES => join( '', qw{
+		FILES => join( ' ', qw{
 			test.log
 			testdir/*
 			testdir/
