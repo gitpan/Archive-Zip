@@ -22,7 +22,7 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "Test::More" : "0.42"
+            "Test::More" : "0.88"
          }
       },
       "configure" : {
@@ -53,5 +53,5 @@
          "url" : "https://github.com/redhotpenguin/perl-Archive-Zip-svn"
       }
    },
-   "version" : "1.36"
+   "version" : "1.37"
 }

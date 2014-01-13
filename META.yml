@@ -3,7 +3,7 @@ abstract: 'Provide an interface to ZIP archive files.'
 author:
   - 'Ned Konz <perl@bike-nomad.com>'
 build_requires:
-  Test::More: 0.42
+  Test::More: 0.88
 configure_requires:
   ExtUtils::MakeMaker: 0
 dynamic_config: 1
@@ -32,4 +32,4 @@ requires:
   perl: 5.006
 resources:
   repository: https://github.com/redhotpenguin/perl-Archive-Zip-svn
-version: 1.36
+version: 1.37
