@@ -6,7 +6,7 @@ use strict;
 use vars qw( $VERSION @ISA );
 
 BEGIN {
-    $VERSION = '1.37';
+    $VERSION = '1.38';
     @ISA     = qw( Archive::Zip );
 
     if ( $^O eq 'MSWin32' ) {
@@ -107,7 +107,7 @@ sub new {
         'fileAttributeFormat'      => FA_UNIX,
         'versionMadeBy'            => 20,
         'versionNeededToExtract'   => 20,
-        'bitFlag'                  => 0,
+        'bitFlag'                  => ($Archive::Zip::UNICODE ? 0x0800 : 0),
         'compressionMethod'        => COMPRESSION_STORED,
         'desiredCompressionMethod' => COMPRESSION_STORED,
         'desiredCompressionLevel'  => COMPRESSION_LEVEL_NONE,

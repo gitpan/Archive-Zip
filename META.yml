@@ -32,4 +32,4 @@ requires:
   perl: 5.006
 resources:
   repository: https://github.com/redhotpenguin/perl-Archive-Zip-svn
-version: 1.37
+version: 1.38
