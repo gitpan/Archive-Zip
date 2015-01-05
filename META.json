@@ -4,7 +4,7 @@
       "Ned Konz <perl@bike-nomad.com>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.6302, CPAN::Meta::Converter version 2.120630",
+   "generated_by" : "ExtUtils::MakeMaker version 6.6302, CPAN::Meta::Converter version 2.142690",
    "license" : [
       "perl_5"
    ],
@@ -53,5 +53,5 @@
          "url" : "https://github.com/redhotpenguin/perl-Archive-Zip-svn"
       }
    },
-   "version" : "1.39"
+   "version" : "1.40"
 }

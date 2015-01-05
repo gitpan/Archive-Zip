@@ -223,4 +223,33 @@ BEGIN {
     }
 }
 
+sub passthrough
+{
+    my $fromFile = shift ;
+    my $toFile = shift ;
+    my $action = shift ;
+
+    my $z = Archive::Zip->new; 
+    $z->read($fromFile);
+    if ($action)
+    {
+        for my $member($z->members())
+        {
+            &$action($member) ; 
+        }
+    }
+    $z->writeToFileNamed($toFile);
+}
+
+sub readFile
+{
+    my $name = shift ;
+    local $/;
+    open F, "<$name"
+        or die "Cannot open $name: $!\n";
+    my $data = <F>;
+    close F ;
+    return $data;
+}
+
 1;
